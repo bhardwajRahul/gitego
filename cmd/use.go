@@ -15,6 +15,7 @@ type useRunner struct {
 	load             func() (*config.Config, error)
 	save             func(*config.Config) error
 	setGlobalGit     func(string, string) error
+	unsetGlobalGit   func(string) error
 	setGitCredential func(string, string) error
 	getOS            func() string
 	getToken         func(string) (string, error)
@@ -51,6 +52,27 @@ func (u *useRunner) run(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	if profile.SigningKey != "" {
+		if err := u.setGlobalGit("user.signingkey", profile.SigningKey); err != nil {
+			fmt.Printf("Error setting git user.signingkey: %v\n", err)
+
+			return
+		}
+	} else if u.unsetGlobalGit != nil {
+		_ = u.unsetGlobalGit("user.signingkey")
+	}
+
+	if profile.SSHKey != "" {
+		sshCommand := fmt.Sprintf("ssh -i %s", profile.SSHKey)
+		if err := u.setGlobalGit("core.sshCommand", sshCommand); err != nil {
+			fmt.Printf("Error setting git core.sshCommand: %v\n", err)
+
+			return
+		}
+	} else if u.unsetGlobalGit != nil {
+		_ = u.unsetGlobalGit("core.sshCommand")
+	}
+
 	// Action 2: Set this profile as the active one in gitego's config.
 	cfg.ActiveProfile = profileName
 	if err := u.save(cfg); err != nil {
@@ -84,6 +106,7 @@ credential helper, and preemptively updates the macOS Keychain.`,
 			load:             config.Load,
 			save:             func(c *config.Config) error { return c.Save() },
 			setGlobalGit:     utils.SetGlobalGitConfig,
+			unsetGlobalGit:   utils.UnsetGlobalGitConfig,
 			setGitCredential: config.SetGitCredential,
 			getOS:            func() string { return runtime.GOOS },
 			getToken:         config.GetToken,

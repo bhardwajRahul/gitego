@@ -38,3 +38,23 @@ func SetGlobalGitConfig(key, value string) error {
 
 	return nil
 }
+
+// UnsetGlobalGitConfig runs 'git config --global --unset <key>'.
+// If the key is not set, git exits with status code 5; this is ignored.
+func UnsetGlobalGitConfig(key string) error {
+	cmd := execCommand("git", "config", "--global", "--unset", key)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			// "you try to unset an option which does not exist (ret=5)"
+			if exitErr.ExitCode() == 5 {
+				return nil
+			}
+		}
+
+		return fmt.Errorf("git command failed: %w\nOutput: %s", err, string(output))
+	}
+
+	return nil
+}
