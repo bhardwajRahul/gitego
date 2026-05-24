@@ -107,8 +107,8 @@ func validateHookCreation(t *testing.T, hooksDir, output string) {
 	}
 
 	content, _ := os.ReadFile(hookPath)
-	if !strings.Contains(string(content), "gitego internal check-commit") {
-		t.Error("Hook file was created, but does not contain the correct gitego command.")
+	if !strings.Contains(string(content), binaryName+" internal check-commit") {
+		t.Error("Hook file was created, but does not contain the correct command.")
 	}
 
 	if !strings.Contains(output, "hook installed successfully") {
@@ -127,8 +127,8 @@ func validateHookAppend(t *testing.T, hooksDir, initialContent, output string) {
 		t.Error("Expected hook to append, but it overwrote the original content.")
 	}
 
-	if !strings.Contains(string(finalContent), "gitego internal check-commit") {
-		t.Error("Hook file was not appended with the correct gitego command.")
+	if !strings.Contains(string(finalContent), binaryName+" internal check-commit") {
+		t.Error("Hook file was not appended with the correct command.")
 	}
 
 	if !strings.Contains(output, "appended successfully") {
@@ -179,7 +179,7 @@ func TestInstallHook(t *testing.T) {
 		_, hooksDir, cleanup := setupTestRepoAndChangeDir(t, originalWd)
 		defer cleanup()
 
-		createExistingHook(hooksDir, "#!/bin/sh\ngitego internal check-commit\n")
+		createExistingHook(hooksDir, "#!/bin/sh\n"+binaryName+" internal check-commit\n")
 
 		output := captureOutput(t, "", func() {
 			installHookCmd.Run(installHookCmd, []string{})

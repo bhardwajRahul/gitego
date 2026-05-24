@@ -6,12 +6,18 @@ package cmd
 import (
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 )
 
 // The version of the application.
-var version = "0.1.1" // Updated for release
+var version = "0.1.2"
+
+// binaryName is the name of the running executable, supporting invocation as
+// both "gitego" and "git-ego" (git subcommand form).
+var binaryName = filepath.Base(os.Args[0])
 
 var (
 	// versionFlag is a flag to print the version and exit.
@@ -21,21 +27,13 @@ var (
 // rootCmd represents the base command when called without any subcommands.
 // It's the main entry point for the CLI application.
 var rootCmd = &cobra.Command{
-	Use:   "gitego",
 	Short: "A clever, context-aware identity manager for Git.",
-	Long: `gitego is a command-line tool to seamlessly manage your Git "alter egos".
-
-It allows you to define, switch between, and automatically apply different
-user profiles (user.name, user.email), SSH keys, and Personal Access Tokens
-depending on your current working directory or other contexts.`,
 	Run: func(cmd *cobra.Command, _ []string) {
-		// If the version flag is passed, print the version and exit.
 		if versionFlag {
-			fmt.Printf("gitego version %s\n", version)
+			fmt.Printf("%s version %s\n", binaryName, version)
 
 			return
 		}
-		// Otherwise, show the help information.
 		if err := cmd.Help(); err != nil {
 			log.Fatalf("Failed to show help: %v", err)
 		}
@@ -43,8 +41,14 @@ depending on your current working directory or other contexts.`,
 }
 
 func init() {
-	// Add the --version flag to the root command.
-	rootCmd.Flags().BoolVarP(&versionFlag, "version", "v", false, "Print gitego's version number")
+	rootCmd.Use = binaryName
+	rootCmd.Long = fmt.Sprintf(`%s is a command-line tool to seamlessly manage your Git "alter egos".
+
+It allows you to define, switch between, and automatically apply different
+user profiles (user.name, user.email), SSH keys, and Personal Access Tokens
+depending on your current working directory or other contexts.`, binaryName)
+
+	rootCmd.Flags().BoolVarP(&versionFlag, "version", "v", false, fmt.Sprintf("Print %s's version number", binaryName))
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.

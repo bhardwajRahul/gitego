@@ -22,15 +22,15 @@ This document outlines the steps to prepare and publish a new release of gitego.
 
 ### 4. Build Verification
 - [ ] Project builds successfully: `go build -v ./...`
-- [ ] Binary works: `./gitego --version`
+- [ ] Binary works: `./git-ego --version`
 - [ ] GitHub Actions CI passes
 
 ## Release Process
 
 ### 1. Create Release Tag
 ```bash
-git tag -a v0.1.1 -m "Release version 0.1.1"
-git push origin v0.1.1
+git tag -a v0.1.2 -m "Release version 0.1.1"
+git push origin v0.1.2
 ```
 
 ### 2. GitHub Release
@@ -40,8 +40,8 @@ git push origin v0.1.1
 
 ### 3. Verify Installation
 ```bash
-go install github.com/bgreenwell/gitego@latest
-gitego --version
+go install github.com/bgreenwell/git-ego@latest
+git ego --version
 ```
 
 ### 4. Post-Release

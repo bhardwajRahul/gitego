@@ -5,7 +5,7 @@ package cmd
 import (
 	"testing"
 
-	"github.com/bgreenwell/gitego/config"
+	"github.com/bgreenwell/git-ego/config"
 )
 
 // setupRmTestConfig creates a mock config for rm command testing.

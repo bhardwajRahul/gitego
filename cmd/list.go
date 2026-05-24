@@ -10,7 +10,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/bgreenwell/gitego/config"
+	"github.com/bgreenwell/git-ego/config"
 	"github.com/spf13/cobra"
 )
 
@@ -40,7 +40,7 @@ The globally active profile is marked with an asterisk (*).`,
 		}
 
 		if len(cfg.Profiles) == 0 {
-			fmt.Println("No profiles found. Use 'gitego add <profile_name>' to create one.")
+			fmt.Printf("No profiles found. Use '%s add <profile_name>' to create one.\n", binaryName)
 
 			return
 		}

@@ -8,8 +8,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/bgreenwell/gitego/config"
-	"github.com/bgreenwell/gitego/utils"
+	"github.com/bgreenwell/git-ego/config"
+	"github.com/bgreenwell/git-ego/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -60,7 +60,7 @@ func (r *checkCommitRunner) run(cmd *cobra.Command, args []string) {
 	}
 
 	// --- Mismatch found, prompt the user ---
-	_, _ = fmt.Fprintf(r.stderr, "\n--- gitego Safety Check ---\n")
+	_, _ = fmt.Fprintf(r.stderr, "\n--- %s Safety Check ---\n", binaryName)
 	_, _ = fmt.Fprintf(r.stderr, "Warning: Your effective Git email for this repo is '%s'.\n", gitEmail)
 	_, _ = fmt.Fprintf(r.stderr, "However, the profile expected for this directory is '%s' ('%s').\n",
 		expectedProfileName, expectedProfile.Email)

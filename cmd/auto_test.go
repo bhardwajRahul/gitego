@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bgreenwell/gitego/config"
+	"github.com/bgreenwell/git-ego/config"
 )
 
 // setupAutoTestConfig creates a mock config for auto command testing.

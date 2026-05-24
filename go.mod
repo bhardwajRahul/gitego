@@ -1,4 +1,4 @@
-module github.com/bgreenwell/gitego
+module github.com/bgreenwell/git-ego
 
 go 1.24.4
 

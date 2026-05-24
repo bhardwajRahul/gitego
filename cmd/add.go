@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/bgreenwell/gitego/config"
+	"github.com/bgreenwell/git-ego/config"
 	"github.com/spf13/cobra"
 )
 
@@ -40,7 +40,7 @@ func (a *adder) run(cmd *cobra.Command, args []string) {
 
 	if _, exists := cfg.Profiles[profileName]; exists {
 		fmt.Printf("Error: Profile '%s' already exists.\n", profileName)
-		fmt.Printf("Use 'gitego edit %s' to modify it, or 'gitego rm %s' to remove it.\n", profileName, profileName)
+		fmt.Printf("Use '%s edit %s' to modify it, or '%s rm %s' to remove it.\n", binaryName, profileName, binaryName, profileName)
 
 		return
 	}

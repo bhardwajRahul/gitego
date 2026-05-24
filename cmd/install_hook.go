@@ -11,13 +11,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// The content of the shell script we'll write or append.
-const hookScriptContent = `
+// hookScript returns the shell script fragment to write or append.
+// Using the actual binary name ensures the hook works when invoked as git-ego.
+func hookScript() string {
+	return fmt.Sprintf(`
 # gitego pre-commit hook
 # This command checks your commit author against the expected profile.
 # If there's a mismatch, it will prompt you before committing.
-gitego internal check-commit
-`
+%s internal check-commit
+`, binaryName)
+}
+
 const (
 	// executableFilePermissions are the permissions for an executable file.
 	executableFilePermissions = 0755
@@ -29,9 +33,9 @@ var installHookCmd = &cobra.Command{
 	Long: `Installs a pre-commit hook in the current Git repository.
 
 This hook automatically runs before every commit to verify that your
-commit author details match the gitego profile expected for this directory.
+commit author details match the expected profile for this directory.
 This provides a powerful safety net against accidental misattributed commits.
-If a pre-commit hook already exists, gitego will ask to append its command.`,
+If a pre-commit hook already exists, you will be asked whether to append.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		gitRoot, err := findGitRoot(".")
 		if err != nil {
@@ -60,20 +64,20 @@ If a pre-commit hook already exists, gitego will ask to append its command.`,
 				return
 			}
 
-			if strings.Contains(string(content), "gitego internal check-commit") {
-				fmt.Println("✓ gitego pre-commit hook is already installed.")
+			if strings.Contains(string(content), "internal check-commit") {
+				fmt.Printf("✓ %s pre-commit hook is already installed.\n", binaryName)
 
 				return
 			}
 
 			// Hook exists but is missing our command. Ask to append.
-			fmt.Print("A pre-commit hook already exists. Append gitego check? [Y/n]: ")
+			fmt.Printf("A pre-commit hook already exists. Append %s check? [Y/n]: ", binaryName)
 			reader := bufio.NewReader(os.Stdin)
 			response, _ := reader.ReadString('\n')
 
 			if strings.TrimSpace(strings.ToLower(response)) == "n" {
 				fmt.Println("\nInstall cancelled. Please manually add the following line to your pre-commit hook:")
-				fmt.Println("  gitego internal check-commit")
+				fmt.Printf("  %s internal check-commit\n", binaryName)
 
 				return
 			}
@@ -91,24 +95,24 @@ If a pre-commit hook already exists, gitego will ask to append its command.`,
 				}
 			}()
 
-			if _, err := f.WriteString(hookScriptContent); err != nil {
+			if _, err := f.WriteString(hookScript()); err != nil {
 				fmt.Printf("Error: Failed to append to existing hook: %v\n", err)
 
 				return
 			}
-			fmt.Printf("✓ gitego check appended successfully to %s\n", hookPath)
+			fmt.Printf("✓ %s check appended successfully to %s\n", binaryName, hookPath)
 
 		} else {
 			// File does not exist, create a new one.
 			// Prepend the shebang for a new script.
-			newHookContent := "#!/bin/sh" + hookScriptContent
+			newHookContent := "#!/bin/sh" + hookScript()
 			err = os.WriteFile(hookPath, []byte(newHookContent), executableFilePermissions)
 			if err != nil {
 				fmt.Printf("Error installing hook: %v\n", err)
 
 				return
 			}
-			fmt.Printf("✓ gitego pre-commit hook installed successfully in %s\n", hookPath)
+			fmt.Printf("✓ %s pre-commit hook installed successfully in %s\n", binaryName, hookPath)
 		}
 	},
 }

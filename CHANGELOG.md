@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-05-24
+
+### Changed
+
+- Renamed Go module to `github.com/bgreenwell/git-ego` to match repository name
+- Binary name is now resolved dynamically at runtime, so the tool works correctly when invoked as either `gitego` or `git-ego` (git subcommand form)
+- Updated all user-facing messages to use the actual binary name rather than a hardcoded string
+
+### Fixed
+
+- Restored `.golangci.yml` linter configuration (had been left as a backup file)
+- Corrected stale `gitego` → `git-ego` references in README, CONTRIBUTING, RELEASE, and build script
+
 ## [0.1.1] - 2025-08-13
 
 ### Changed

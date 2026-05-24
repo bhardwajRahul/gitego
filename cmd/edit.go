@@ -5,7 +5,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/bgreenwell/gitego/config"
+	"github.com/bgreenwell/git-ego/config"
 	"github.com/spf13/cobra"
 )
 

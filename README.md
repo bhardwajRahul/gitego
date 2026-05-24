@@ -1,10 +1,10 @@
 ![](assets/logo.svg)
 
-[![Build Status](https://github.com/bgreenwell/gitego/actions/workflows/go-ci.yml/badge.svg)](https://github.com/bgreenwell/gitego/actions/workflows/go-ci.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/bgreenwell/gitego)](https://goreportcard.com/report/github.com/bgreenwell/gitego)
-[![Go Reference](https://pkg.go.dev/badge/github.com/bgreenwell/gitego.svg)](https://pkg.go.dev/github.com/bgreenwell/gitego)
+[![Build Status](https://github.com/bgreenwell/git-ego/actions/workflows/go-ci.yml/badge.svg)](https://github.com/bgreenwell/git-ego/actions/workflows/go-ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/bgreenwell/git-ego)](https://goreportcard.com/report/github.com/bgreenwell/git-ego)
+[![Go Reference](https://pkg.go.dev/badge/github.com/bgreenwell/git-ego.svg)](https://pkg.go.dev/github.com/bgreenwell/git-ego)
 ![Go Version](https://img.shields.io/badge/go%20version-%3E=1.24-61CFDD.svg)
-[![Latest Release](https://img.shields.io/github/v/release/bgreenwell/gitego)](https://github.com/bgreenwell/gitego/releases/latest)
+[![Latest Release](https://img.shields.io/github/v/release/bgreenwell/git-ego)](https://github.com/bgreenwell/git-ego/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **Your Git identity manager and automatic profile switcher.**
@@ -28,7 +28,7 @@ It seamlessly manages your `user.name`, `user.email`, SSH keys, and Personal Acc
 You must have [Go](https://go.dev/dl/) (version 1.24+) installed on your system.
 
 ```bash
-go install github.com/bgreenwell/gitego@latest
+go install github.com/bgreenwell/git-ego@latest
 ````
 
 *(Note: Ensure your Go bin directory, typically `~/go/bin`, is in your system’s `PATH`.)*

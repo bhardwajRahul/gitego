@@ -85,14 +85,14 @@ jobs:
     - name: Build binary
       shell: bash
       run: |
-        binary_name="gitego"
+        binary_name="git-ego"
         if [ "${{ matrix.goos }}" = "windows" ]; then
           binary_name="${binary_name}.exe"
         fi
         
         # Build with version and other build flags
         GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build \
-          -ldflags "-s -w -X github.com/bgreenwell/gitego/cmd.version=${{ steps.version.outputs.version }}" \
+          -ldflags "-s -w -X github.com/bgreenwell/git-ego/cmd.version=${{ steps.version.outputs.version }}" \
           -o "${binary_name}" .
         
         # Verify the binary was created
@@ -106,9 +106,9 @@ jobs:
         
         # Copy binary to release directory
         if [ "${{ matrix.goos }}" = "windows" ]; then
-          cp gitego.exe release/
+          cp git-ego.exe release/
         else
-          cp gitego release/
+          cp git-ego release/
         fi
         
         # Copy additional files
@@ -120,7 +120,7 @@ jobs:
       shell: bash
       run: |
         cd release
-        asset_name="gitego-${{ steps.version.outputs.version }}-${{ matrix.asset_name_suffix }}"
+        asset_name="git-ego-${{ steps.version.outputs.version }}-${{ matrix.asset_name_suffix }}"
         7z a "../${asset_name}" *
         cd ..
         echo "ASSET_NAME=${asset_name}" >> $GITHUB_ENV
@@ -130,7 +130,7 @@ jobs:
       shell: bash
       run: |
         cd release
-        asset_name="gitego-${{ steps.version.outputs.version }}-${{ matrix.asset_name_suffix }}"
+        asset_name="git-ego-${{ steps.version.outputs.version }}-${{ matrix.asset_name_suffix }}"
         tar -czf "../${asset_name}" *
         cd ..
         echo "ASSET_NAME=${asset_name}" >> $GITHUB_ENV

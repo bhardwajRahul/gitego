@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Build script for gitego - creates binaries for all major platforms
+# Build script for git-ego - creates binaries for all major platforms
 set -e
 
 VERSION=${1:-$(git describe --tags --always)}
 OUTPUT_DIR="./dist"
 
-echo "Building gitego version: $VERSION"
+echo "Building git-ego version: $VERSION"
 
 # Clean and create output directory
 rm -rf "$OUTPUT_DIR"
@@ -26,13 +26,13 @@ for target in "${targets[@]}"; do
     OS=$(echo $target | cut -d'/' -f1)
     ARCH=$(echo $target | cut -d'/' -f2)
     
-    output_name="gitego-${OS}-${ARCH}"
+    output_name="git-ego-${OS}-${ARCH}"
     if [ "$OS" = "windows" ]; then
         output_name="${output_name}.exe"
     fi
     
     echo "Building $output_name..."
-    GOOS=$OS GOARCH=$ARCH go build -ldflags "-X github.com/bgreenwell/gitego/cmd.version=$VERSION" -o "$OUTPUT_DIR/$output_name" .
+    GOOS=$OS GOARCH=$ARCH go build -ldflags "-X github.com/bgreenwell/git-ego/cmd.version=$VERSION" -o "$OUTPUT_DIR/$output_name" .
 done
 
 echo "Build complete! Binaries are in $OUTPUT_DIR"
