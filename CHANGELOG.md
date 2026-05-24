@@ -7,16 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.2] - 2026-05-24
 
+### Added
+
+- **Signing key support**: New `--signing-key` flag on `add` and `edit` sets `user.signingkey` in the profile's gitconfig, so commits are properly signed and verified when switching identities
+- **SSH key fix on profile switch**: `gitego use` now correctly updates the SSH key when switching the global default profile
+
 ### Changed
 
-- Renamed Go module to `github.com/bgreenwell/git-ego` to match repository name
-- Binary name is now resolved dynamically at runtime, so the tool works correctly when invoked as either `gitego` or `git-ego` (git subcommand form)
-- Updated all user-facing messages to use the actual binary name rather than a hardcoded string
+- Renamed Go module to `github.com/bgreenwell/git-ego` to match the repository name
+- Binary name is resolved at runtime, so the tool works correctly when invoked as either `gitego` or `git-ego` (git subcommand form)
+- Updated all user-facing messages to use the actual binary name
 
 ### Fixed
 
-- Restored `.golangci.yml` linter configuration (had been left as a backup file)
-- Corrected stale `gitego` → `git-ego` references in README, CONTRIBUTING, RELEASE, and build script
+- Restored `.golangci.yml` linter configuration (had been left as a stale backup file)
+- Corrected `gitego` → `git-ego` references in README, CONTRIBUTING, RELEASE, and build script
 
 ## [0.1.1] - 2025-08-13
 
