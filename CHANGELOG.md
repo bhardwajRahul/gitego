@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Signing key support**: New `--signing-key` flag on `add` and `edit` sets `user.signingkey` in the profile's gitconfig, so commits are properly signed and verified when switching identities
-- **SSH key fix on profile switch**: `gitego use` now correctly updates the SSH key when switching the global default profile
+- **SSH key fix on profile switch**: `git-ego use` now correctly updates the SSH key when switching the global default profile
 
 ### Changed
 

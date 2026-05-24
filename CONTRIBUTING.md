@@ -1,6 +1,6 @@
-# Contributing to gitego
+# Contributing to git-ego
 
-First off, thank you for considering contributing to `gitego`! Your help is invaluable in making this tool better.
+First off, thank you for considering contributing to `git-ego`! Your help is invaluable in making this tool better.
 
 This document provides guidelines for contributing to the project. Please feel free to propose changes to this document in a pull request.
 
@@ -16,7 +16,7 @@ If you find a bug, please ensure the bug was not already reported by searching o
 
 When you are creating a bug report, please include as many details as possible:
 * Your operating system and version.
-* The version of `gitego` you are using (`gitego --version`).
+* The version of `git-ego` you are using (`git-ego --version`).
 * The exact steps to reproduce the problem.
 * The output you expected to see, and what you saw instead.
 
@@ -25,7 +25,7 @@ When you are creating a bug report, please include as many details as possible:
 Enhancement suggestions are tracked as [GitHub issues](https://github.com/bgreenwell/git-ego/issues).
 * Use a clear and descriptive title.
 * Provide a step-by-step description of the suggested enhancement in as many details as possible.
-* Explain why this enhancement would be useful to other `gitego` users.
+* Explain why this enhancement would be useful to other `git-ego` users.
 
 ### Pull Requests
 
@@ -45,14 +45,14 @@ To get started with development, you'll need [Go](https://go.dev/dl/) (version 1
 1.  **Clone the repository:**
     ```bash
     git clone https://github.com/bgreenwell/git-ego.git
-    cd gitego
+    cd git-ego
     ```
 
 2.  **Build the binary:**
     ```bash
     go build .
     ```
-    This will create a `gitego` (or `gitego.exe`) executable in the current directory.
+    This will create a `git-ego` (or `git-ego.exe`) executable in the current directory.
 
 3.  **Run the tests:**
     We have both unit tests and integration tests. To run all of them, use the following command from the root of the project:

@@ -9,7 +9,7 @@
 
 **Your Git identity manager and automatic profile switcher.**
 
-`gitego` is a command-line tool designed to completely eliminate the risk of committing to a repository with the wrong user identity. It allows you to define separate profiles for work, personal projects, and clients, and then automatically switch between them based on your working directory.
+`git-ego` is a command-line tool designed to completely eliminate the risk of committing to a repository with the wrong user identity. It allows you to define separate profiles for work, personal projects, and clients, and then automatically switch between them based on your working directory.
 
 It seamlessly manages your `user.name`, `user.email`, SSH keys, and Personal Access Tokens (PATs), acting as a unified and intelligent manager for your Git identity.
 
@@ -35,19 +35,19 @@ go install github.com/bgreenwell/git-ego@latest
 
 ## One-time setup: Configure Git
 
-After installation, you need to tell Git to use `gitego` as its credential helper. This single command makes `gitego` the source of truth for your HTTPS credentials.
+After installation, you need to tell Git to use `git-ego` as its credential helper. This single command makes `git-ego` the source of truth for your HTTPS credentials.
 
 ```bash
 # Clear any old, conflicting helpers
 git config --global credential.helper ""
 
-# Set gitego as the one and only helper, using the required '\!' prefix
-git config --global --add credential.helper "!gitego credential"
+# Set git-ego as the one and only helper, using the required '\!' prefix
+git config --global --add credential.helper "!git-ego credential"
 ```
 
 ## Example usage
 
-Here’s a typical workflow for setting up and using `gitego`.
+Here’s a typical workflow for setting up and using `git-ego`.
 
 #### 1\. Add your profiles
 
@@ -55,13 +55,13 @@ First, define your different identities.
 
 ```bash
 # A simple personal profile
-gitego add personal --name "Brandon" --email "brandon.personal@email.com" --username "bgreenwell-personal"
+git-ego add personal --name "Brandon" --email "brandon.personal@email.com" --username "bgreenwell-personal"
 
 # A work profile that uses a specific SSH key
-gitego add work-ssh --name "Brandon Greenwell" --email "brandon.work@company.com" --username "bgreenwell-work" --ssh-key ~/.ssh/id_work
+git-ego add work-ssh --name "Brandon Greenwell" --email "brandon.work@company.com" --username "bgreenwell-work" --ssh-key ~/.ssh/id_work
 
 # A client profile that uses a PAT for HTTPS
-gitego add client-abc --name "Brandon G." --email "brandon@client-abc.com" --username "bgreenwell-client" --pat "ghp_YourClientPATHere"
+git-ego add client-abc --name "Brandon G." --email "brandon@client-abc.com" --username "bgreenwell-client" --pat "ghp_YourClientPATHere"
 ```
 
 #### 2\. List your configured profiles
@@ -69,7 +69,7 @@ gitego add client-abc --name "Brandon G." --email "brandon@client-abc.com" --use
 Use the `list` (or `ls`) command to see all the profiles you’ve saved.
 
 ```bash
-gitego list
+git-ego list
 ```
 
 *Expected Output:*
@@ -87,7 +87,7 @@ ACTIVE  PROFILE     NAME                 EMAIL                       ATTRIBUTES
 The `use` command sets your default global identity for any repositories that don’t have a specific rule. This will also update your global `.gitconfig`.
 
 ```bash
-gitego use personal
+git-ego use personal
 ```
 
 *Expected Output:*
@@ -96,7 +96,7 @@ gitego use personal
 ✓ Set active profile to 'personal'.
 ```
 
-Now, `gitego list` will show the active profile marked with an asterisk:
+Now, `git-ego list` will show the active profile marked with an asterisk:
 
 ```
 ACTIVE  PROFILE     NAME                 EMAIL                       ATTRIBUTES
@@ -108,11 +108,11 @@ ACTIVE  PROFILE     NAME                 EMAIL                       ATTRIBUTES
 
 #### 4\. Configure automatic switching
 
-Now, tell `gitego` which profiles to use for which project directories.
+Now, tell `git-ego` which profiles to use for which project directories.
 
 ```bash
-gitego auto ~/dev/work/ work-ssh
-gitego auto ~/dev/personal/ personal
+git-ego auto ~/dev/work/ work-ssh
+git-ego auto ~/dev/personal/ personal
 ```
 
 When you `cd` into `~/dev/work/any-repo`, your `user.name`, `user.email`, and `sshCommand` will be automatically switched to the `work-ssh` profile.
@@ -121,7 +121,7 @@ When you `cd` into `~/dev/work/any-repo`, your `user.name`, `user.email`, and `s
 
 ## Use cases
 
-`gitego` solves real-world identity management challenges for developers across various scenarios:
+`git-ego` solves real-world identity management challenges for developers across various scenarios:
 
 ### 🏢 **Professional development**
 - **Freelancers/contractors**: Manage separate identities for different clients without credential mix-ups
@@ -151,20 +151,20 @@ When you `cd` into `~/dev/work/any-repo`, your `user.name`, `user.email`, and `s
 
 | Command | Alias | Description |
 |---|---|---|
-| `gitego add <name>` | | Adds a new user profile. |
-| `gitego rm <name>` | `remove` | Removes a saved user profile, asking for confirmation. |
-| `gitego list` | `ls` | Lists all saved user profiles and their attributes. |
-| `gitego use <name>` | | Sets a profile as the active global default. |
-| `gitego auto <path> <name>` | | Sets a profile to be used automatically for a given directory path. |
-| `gitego status` | | Displays the current effective Git user and the source of the configuration. |
-| `gitego edit <name>` | | Edits an existing user profile's attributes. |
-| `gitego install-hook` | | Installs a pre-commit hook in the current repo to prevent misattributed commits. |
-| `gitego completion <shell>`| | Generates shell completion scripts. |
-| `gitego --version` | `-v` | Prints the application version. |
+| `git-ego add <name>` | | Adds a new user profile. |
+| `git-ego rm <name>` | `remove` | Removes a saved user profile, asking for confirmation. |
+| `git-ego list` | `ls` | Lists all saved user profiles and their attributes. |
+| `git-ego use <name>` | | Sets a profile as the active global default. |
+| `git-ego auto <path> <name>` | | Sets a profile to be used automatically for a given directory path. |
+| `git-ego status` | | Displays the current effective Git user and the source of the configuration. |
+| `git-ego edit <name>` | | Edits an existing user profile's attributes. |
+| `git-ego install-hook` | | Installs a pre-commit hook in the current repo to prevent misattributed commits. |
+| `git-ego completion <shell>`| | Generates shell completion scripts. |
+| `git-ego --version` | `-v` | Prints the application version. |
 
 ## How it works
 
-`gitego` is built on top of two powerful, native Git features, ensuring it works seamlessly without fighting against Git's own mechanisms.
+`git-ego` is built on top of two powerful, native Git features, ensuring it works seamlessly without fighting against Git's own mechanisms.
 
 ### Visualizing the workflow
 
@@ -177,8 +177,8 @@ graph LR
     D --> F[git push/pull];
     E --> F;
     F --> G{HTTPS?};
-    G -- Yes --> H[Git calls gitego helper];
-    H --> I[gitego finds profile];
+    G -- Yes --> H[Git calls git-ego helper];
+    H --> I[git-ego finds profile];
     I --> J[Get PAT from Keychain];
     J --> K[Return credentials];
     G -- No --> L[Use sshCommand];
@@ -188,13 +188,13 @@ graph LR
 
 ### 1\. Identity switching: `includeIf`
 
-For managing your commit identity (`user.name`, `user.email`) and SSH keys, `gitego` uses a Git feature called conditional includes.
+For managing your commit identity (`user.name`, `user.email`) and SSH keys, `git-ego` uses a Git feature called conditional includes.
 
-When you run `gitego auto ~/work work-ssh`:
+When you run `git-ego auto ~/work work-ssh`:
 
-1.  `gitego` creates a small, dedicated config file at `~/.gitego/profiles/work-ssh.gitconfig`.
+1.  `git-ego` creates a small, dedicated config file at `~/.gitego/profiles/work-ssh.gitconfig`.
 2.  This file contains only the `[user]` and `[core]` information for that profile.
-3.  `gitego` then adds a block to your main `~/.gitconfig` file that looks like this:
+3.  `git-ego` then adds a block to your main `~/.gitconfig` file that looks like this:
     ```ini
     [includeIf "gitdir:~/work/"]
         path = ~/.gitego/profiles/work-ssh.gitconfig
@@ -204,23 +204,23 @@ This tells Git: "if the current repository is inside the `~/work/` directory, me
 
 ### 2\. Authentication: credential helper
 
-For handling Personal Access Tokens (PATs) with HTTPS remotes, `gitego` acts as a **Git credential helper**.
+For handling Personal Access Tokens (PATs) with HTTPS remotes, `git-ego` acts as a **Git credential helper**.
 
-1.  **Configuration**: The `git config --global credential.helper '!gitego credential'` command tells Git that whenever it needs a username or password for an `https://` URL, it should run the `gitego credential` command.
-2.  **Execution**: When you run `git push` or `git pull` on an HTTPS remote, Git executes `gitego credential` in the background and pipes it the protocol, host, and path information.
-3.  **Context Resolution**: The `gitego credential` command uses the same logic as `gitego status`: it checks the current working directory to find the active profile via auto-rules or the global default.
+1.  **Configuration**: The `git config --global credential.helper '!git-ego credential'` command tells Git that whenever it needs a username or password for an `https://` URL, it should run the `git-ego credential` command.
+2.  **Execution**: When you run `git push` or `git pull` on an HTTPS remote, Git executes `git-ego credential` in the background and pipes it the protocol, host, and path information.
+3.  **Context Resolution**: The `git-ego credential` command uses the same logic as `git-ego status`: it checks the current working directory to find the active profile via auto-rules or the global default.
 4.  **Secure Retrieval**: It then fetches the corresponding PAT for that profile from your operating system's native, secure keychain (macOS Keychain, Windows Credential Manager, or Linux Secret Service).
 5.  **Response**: Finally, it prints the username and PAT to standard output, which Git reads to complete the authentication.
 
 ### Security model
 
-`gitego` is designed with security as a top priority. Here's how it keeps your credentials safe:
+`git-ego` is designed with security as a top priority. Here's how it keeps your credentials safe:
 
   * **No Plaintext PATs:** Personal Access Tokens (PATs) are never stored in plaintext in the configuration file.
-  * **Secure OS Keychain:** `gitego` uses the native, secure keychain of your operating system to store and retrieve your PATs. This is the same secure storage that tools like Docker and other credential managers use.
+  * **Secure OS Keychain:** `git-ego` uses the native, secure keychain of your operating system to store and retrieve your PATs. This is the same secure storage that tools like Docker and other credential managers use.
   * **Scoped Access:** The credential helper only provides a token when Git explicitly requests it for an HTTPS operation. The token is passed directly to Git in memory and is not logged or stored elsewhere.
 
-By leveraging these native OS features and Git's own robust mechanisms, `gitego` provides a seamless and secure way to manage your developer identities.
+By leveraging these native OS features and Git's own robust mechanisms, `git-ego` provides a seamless and secure way to manage your developer identities.
 
 ## Contributing
 

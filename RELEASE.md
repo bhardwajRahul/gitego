@@ -1,6 +1,6 @@
 # Release Checklist
 
-This document outlines the steps to prepare and publish a new release of gitego.
+This document outlines the steps to prepare and publish a new release of git-ego.
 
 ## Pre-Release Checklist
 
