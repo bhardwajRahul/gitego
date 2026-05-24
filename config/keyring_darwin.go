@@ -12,8 +12,8 @@ import (
 
 // SetGitCredential directly overwrites the keychain entry that Git's osxkeychain helper reads.
 func SetGitCredential(username, token string) error {
-	// Attempt to delete any existing password for this account/server combination first.
-	_ = exec.Command("security", "delete-internet-password", "-a", username, "-s", "github.com").Run()
+	// Attempt to delete ALL existing password for github.com first.
+	_ = exec.Command("security", "delete-internet-password", "-s", "github.com").Run()
 
 	// Add the new password.
 	cmd := exec.Command(
