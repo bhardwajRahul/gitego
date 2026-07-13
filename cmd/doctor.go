@@ -16,6 +16,21 @@ var doctorCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		if doctorRepair {
+			for _, rule := range cfg.AutoRules {
+				profile, ok := cfg.Profiles[rule.Profile]
+				if !ok {
+					continue
+				}
+				if err := config.EnsureProfileGitconfig(rule.Profile, profile); err != nil {
+					return err
+				}
+				if err := config.AddIncludeIf(rule.Profile, rule.Path); err != nil {
+					return err
+				}
+			}
+			cmd.Println("✓ Repaired generated profile includes and missing auto-rules where possible.")
+		}
 		problems := cfg.VerifyAutoRules()
 		helpers, err := utils.GetGlobalGitConfigValues("credential.helper")
 		if err != nil {
@@ -43,4 +58,9 @@ var doctorCmd = &cobra.Command{
 	},
 }
 
-func init() { rootCmd.AddCommand(doctorCmd) }
+var doctorRepair bool
+
+func init() {
+	doctorCmd.Flags().BoolVar(&doctorRepair, "repair", false, "Regenerate profile includes and restore missing auto-rules")
+	rootCmd.AddCommand(doctorCmd)
+}

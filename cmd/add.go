@@ -32,6 +32,9 @@ func (a *adder) run(cmd *cobra.Command, args []string) error {
 	if err := config.ValidateProfileName(profileName); err != nil {
 		return err
 	}
+	if err := config.ValidateCredentialHosts(addHosts); err != nil {
+		return err
+	}
 
 	cfg, err := a.load()
 	if err != nil {

@@ -23,6 +23,8 @@ const (
 	flags    = 0
 )
 
+var listCheckPATs bool
+
 // listCmd represents the list command.
 var listCmd = &cobra.Command{
 	Use:   "list",
@@ -78,9 +80,12 @@ The globally active profile is marked with an asterisk (*).`,
 			if profile.SSHKey != "" {
 				attributes = append(attributes, "[SSH]")
 			}
-			// Check if a PAT exists in the keychain for this profile
-			if token, err := config.GetToken(name); err == nil && token != "" {
-				attributes = append(attributes, "[PAT]")
+			// Keyring access can be slow or prompt on headless systems. Opt in
+			// when the PAT marker is needed.
+			if listCheckPATs {
+				if token, err := config.GetToken(name); err == nil && token != "" {
+					attributes = append(attributes, "[PAT]")
+				}
 			}
 
 			// 3. Print the enhanced row
@@ -99,5 +104,6 @@ The globally active profile is marked with an asterisk (*).`,
 }
 
 func init() {
+	listCmd.Flags().BoolVar(&listCheckPATs, "check-pats", false, "Check the keyring and display PAT markers")
 	rootCmd.AddCommand(listCmd)
 }

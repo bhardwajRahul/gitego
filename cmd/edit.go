@@ -67,6 +67,9 @@ func (e *editor) run(cmd *cobra.Command, args []string) error {
 		profile.SigningKey = editSigningKey
 	}
 	if cmd.Flags().Changed("host") {
+		if err := config.ValidateCredentialHosts(editHosts); err != nil {
+			return err
+		}
 		profile.Hosts = editHosts
 	}
 

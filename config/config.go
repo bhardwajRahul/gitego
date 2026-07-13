@@ -44,6 +44,18 @@ func (p *Profile) SupportsCredentialHost(host string) bool {
 	return false
 }
 
+// ValidateCredentialHosts accepts DNS names (optionally with a port) and
+// rejects URL/path forms that would never match Git's credential protocol.
+func ValidateCredentialHosts(hosts []string) error {
+	for _, host := range hosts {
+		host = strings.TrimSpace(host)
+		if host == "" || strings.ContainsAny(host, "/\\@ \t\r\n") {
+			return fmt.Errorf("invalid credential host %q", host)
+		}
+	}
+	return nil
+}
+
 // AutoRule represents a single directory-to-profile mapping.
 type AutoRule struct {
 	Path    string `yaml:"path"`
@@ -163,6 +175,12 @@ func (c *Config) GetActiveProfileForCurrentDir() (profileName, source string) {
 	if err != nil {
 		return profileName, source
 	}
+	if localProfile, found := c.profileFromRepositoryFile(currentAbsDir); found {
+		if _, exists := c.Profiles[localProfile]; exists {
+			return localProfile, "repository .gitego profile"
+		}
+		return "", "repository .gitego references an unknown profile"
+	}
 
 	bestMatch := c.findBestMatchingRule(currentAbsDir)
 	if bestMatch != nil {
@@ -171,6 +189,28 @@ func (c *Config) GetActiveProfileForCurrentDir() (profileName, source string) {
 	}
 
 	return profileName, source
+}
+
+func (c *Config) profileFromRepositoryFile(currentAbsDir string) (string, bool) {
+	dir := filepath.FromSlash(strings.TrimSuffix(currentAbsDir, "/"))
+	for {
+		path := filepath.Join(dir, ".gitego")
+		info, err := os.Stat(path)
+		if err == nil && !info.IsDir() {
+			data, readErr := os.ReadFile(path)
+			if readErr != nil {
+				return "", true
+			}
+			name := strings.TrimSpace(string(data))
+			return name, true
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return "", false
 }
 
 func getDefaultSource(activeProfile string) string {

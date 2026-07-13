@@ -126,6 +126,8 @@ git-ego auto rm ~/dev/personal/
 
 When you `cd` into `~/dev/work/any-repo`, your `user.name`, `user.email`, and `sshCommand` will be automatically switched to the `work-ssh` profile.
 
+For a repository-specific safety expectation, create an untracked `.gitego` file containing one profile name (for example `work-ssh`). `status`, the credential helper, and the commit safety check will use it in preference to directory rules. Add `.gitego` to the repository's local `.gitignore` if it should not be shared.
+
 -----
 
 ## Use cases
@@ -163,6 +165,7 @@ When you `cd` into `~/dev/work/any-repo`, your `user.name`, `user.email`, and `s
 | `git-ego add <name>` | | Adds a new user profile. |
 | `git-ego rm <name>` | `remove` | Removes a saved user profile, asking for confirmation. |
 | `git-ego list` | `ls` | Lists all saved user profiles and their attributes. |
+| `git-ego list --check-pats` | | Opt in to keyring checks and PAT markers. |
 | `git-ego use <name>` | | Sets a profile as the active global default. |
 | `git-ego auto <path> <name>` | | Sets a profile to be used automatically for a given directory path. |
 | `git-ego status` | | Displays the current effective Git user and the source of the configuration. |
@@ -171,6 +174,7 @@ When you `cd` into `~/dev/work/any-repo`, your `user.name`, `user.email`, and `s
 | `git-ego install-hook` | | Installs a pre-commit hook in the current repo to prevent misattributed commits. |
 | `git-ego completion <shell>`| | Generates shell completion scripts. |
 | `git-ego doctor` | | Checks auto-switch rules for Git/YAML drift. |
+| `git-ego doctor --repair` | | Repairs missing generated includes and auto-rules. |
 | `git-ego use <name> --local` | | Applies an identity only in the current repository. |
 | `git-ego profiles export/import <file>` | | Exports or imports profile configuration without PATs. |
 | `git-ego --version` | `-v` | Prints the application version. |
