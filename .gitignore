@@ -12,6 +12,3 @@ Thumbs.db
 # Miscellaneous
 *_files
 *.html
-
-# Gemini-specific files
-GEMINI.md
