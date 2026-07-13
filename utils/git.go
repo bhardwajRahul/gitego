@@ -39,6 +39,16 @@ func SetGlobalGitConfig(key, value string) error {
 	return nil
 }
 
+// SetLocalGitConfig sets a repository-local Git configuration value.
+func SetLocalGitConfig(key, value string) error {
+	cmd := execCommand("git", "config", "--local", key, value)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("git command failed: %w\nOutput: %s", err, string(output))
+	}
+	return nil
+}
+
 // UnsetGlobalGitConfig runs 'git config --global --unset <key>'.
 // If the key is not set, git exits with status code 5; this is ignored.
 func UnsetGlobalGitConfig(key string) error {
@@ -56,6 +66,19 @@ func UnsetGlobalGitConfig(key string) error {
 		return fmt.Errorf("git command failed: %w\nOutput: %s", err, string(output))
 	}
 
+	return nil
+}
+
+// UnsetLocalGitConfig removes a repository-local configuration value.
+func UnsetLocalGitConfig(key string) error {
+	cmd := execCommand("git", "config", "--local", "--unset", key)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 5 {
+			return nil
+		}
+		return fmt.Errorf("git command failed: %w\nOutput: %s", err, string(output))
+	}
 	return nil
 }
 

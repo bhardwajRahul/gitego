@@ -171,6 +171,8 @@ When you `cd` into `~/dev/work/any-repo`, your `user.name`, `user.email`, and `s
 | `git-ego install-hook` | | Installs a pre-commit hook in the current repo to prevent misattributed commits. |
 | `git-ego completion <shell>`| | Generates shell completion scripts. |
 | `git-ego doctor` | | Checks auto-switch rules for Git/YAML drift. |
+| `git-ego use <name> --local` | | Applies an identity only in the current repository. |
+| `git-ego profiles export/import <file>` | | Exports or imports profile configuration without PATs. |
 | `git-ego --version` | `-v` | Prints the application version. |
 
 ## How it works

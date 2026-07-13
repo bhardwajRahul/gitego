@@ -10,6 +10,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var useLocalFlag bool
+
 // useRunner holds the dependencies for the use command for mocking.
 type useRunner struct {
 	load             func() (*config.Config, error)
@@ -19,6 +21,8 @@ type useRunner struct {
 	setGitCredential func(string, string) error
 	getOS            func() string
 	getToken         func(string) (string, error)
+	setLocalGit      func(string, string) error
+	unsetLocalGit    func(string) error
 }
 
 // run is the core logic for the use command.
@@ -38,26 +42,36 @@ func (u *useRunner) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("profile %q not found", profileName)
 	}
 
-	if err := applyProfileToGlobal(profile, u.setGlobalGit, u.unsetGlobalGit); err != nil {
+	setGit, unsetGit := u.setGlobalGit, u.unsetGlobalGit
+	if useLocalFlag {
+		setGit, unsetGit = u.setLocalGit, u.unsetLocalGit
+	}
+	if err := applyProfileToGlobal(profile, setGit, unsetGit); err != nil {
 		return fmt.Errorf("apply Git profile: %w", err)
 	}
 
 	// Action 2: Set this profile as the active one in gitego's config.
-	cfg.ActiveProfile = profileName
-	if err := u.save(cfg); err != nil {
-		return fmt.Errorf("save active profile: %w", err)
+	if !useLocalFlag {
+		cfg.ActiveProfile = profileName
+		if err := u.save(cfg); err != nil {
+			return fmt.Errorf("save active profile: %w", err)
+		}
 	}
 
 	// Action 3: If on macOS, also preemptively set the credential
 	// in the keychain to prevent the osxkeychain helper from prompting.
-	if u.getOS() == "darwin" {
+	if !useLocalFlag && u.getOS() == "darwin" {
 		token, err := u.getToken(profileName)
 		if err == nil && token != "" && profile.Username != "" {
 			_ = u.setGitCredential(profile.Username, token)
 		}
 	}
 
-	fmt.Printf("✓ Set active profile to '%s'.\n", profileName)
+	if useLocalFlag {
+		fmt.Printf("✓ Set local profile to '%s'.\n", profileName)
+	} else {
+		fmt.Printf("✓ Set active profile to '%s'.\n", profileName)
+	}
 	return nil
 }
 
@@ -118,11 +132,14 @@ credential helper, and preemptively updates the macOS Keychain.`,
 			setGitCredential: config.SetGitCredential,
 			getOS:            func() string { return runtime.GOOS },
 			getToken:         config.GetToken,
+			setLocalGit:      utils.SetLocalGitConfig,
+			unsetLocalGit:    utils.UnsetLocalGitConfig,
 		}
 		return runner.run(cmd, args)
 	},
 }
 
 func init() {
+	useCmd.Flags().BoolVar(&useLocalFlag, "local", false, "Apply profile only to the current repository")
 	rootCmd.AddCommand(useCmd)
 }
