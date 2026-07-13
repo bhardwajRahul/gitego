@@ -58,3 +58,17 @@ func UnsetGlobalGitConfig(key string) error {
 
 	return nil
 }
+
+// GetGlobalGitConfigValues returns every global value for a multi-valued key.
+func GetGlobalGitConfigValues(key string) ([]string, error) {
+	cmd := execCommand("git", "config", "--global", "--get-all", key)
+	output, err := cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
+			return nil, nil
+		}
+		return nil, err
+	}
+	values := strings.FieldsFunc(string(output), func(r rune) bool { return r == '\n' || r == '\r' })
+	return values, nil
+}

@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -18,7 +19,7 @@ func hookScript() string {
 # gitego pre-commit hook
 # This command checks your commit author against the expected profile.
 # If there's a mismatch, it will prompt you before committing.
-%s internal check-commit
+%s internal check-commit < /dev/tty
 `, binaryName)
 }
 
@@ -36,20 +37,15 @@ This hook automatically runs before every commit to verify that your
 commit author details match the expected profile for this directory.
 This provides a powerful safety net against accidental misattributed commits.
 If a pre-commit hook already exists, you will be asked whether to append.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		gitRoot, err := findGitRoot(".")
+	RunE: func(cmd *cobra.Command, args []string) error {
+		hooksDir, err := gitHooksPath()
 		if err != nil {
-			fmt.Println("Error: Not a git repository (or any of the parent directories).")
-
-			return
+			return fmt.Errorf("not a Git repository: %w", err)
 		}
 
-		hooksDir := filepath.Join(gitRoot, ".git", "hooks")
 		// It's possible the hooks directory doesn't exist in a fresh git init.
 		if err := os.MkdirAll(hooksDir, executableFilePermissions); err != nil {
-			fmt.Printf("Error: Could not create hooks directory: %v\n", err)
-
-			return
+			return fmt.Errorf("create hooks directory: %w", err)
 		}
 
 		hookPath := filepath.Join(hooksDir, "pre-commit")
@@ -59,15 +55,13 @@ If a pre-commit hook already exists, you will be asked whether to append.`,
 			// File exists, so we need to check its content.
 			content, err := os.ReadFile(hookPath)
 			if err != nil {
-				fmt.Printf("Error: Could not read existing pre-commit hook: %v\n", err)
-
-				return
+				return fmt.Errorf("read existing pre-commit hook: %w", err)
 			}
 
 			if strings.Contains(string(content), "internal check-commit") {
 				fmt.Printf("✓ %s pre-commit hook is already installed.\n", binaryName)
 
-				return
+				return nil
 			}
 
 			// Hook exists but is missing our command. Ask to append.
@@ -79,15 +73,13 @@ If a pre-commit hook already exists, you will be asked whether to append.`,
 				fmt.Println("\nInstall cancelled. Please manually add the following line to your pre-commit hook:")
 				fmt.Printf("  %s internal check-commit\n", binaryName)
 
-				return
+				return nil
 			}
 
 			// User confirmed. Append to the existing file.
 			f, err := os.OpenFile(hookPath, os.O_APPEND|os.O_WRONLY, executableFilePermissions)
 			if err != nil {
-				fmt.Printf("Error: Failed to open existing hook for appending: %v\n", err)
-
-				return
+				return fmt.Errorf("open hook for append: %w", err)
 			}
 			defer func() {
 				if err := f.Close(); err != nil {
@@ -96,11 +88,10 @@ If a pre-commit hook already exists, you will be asked whether to append.`,
 			}()
 
 			if _, err := f.WriteString(hookScript()); err != nil {
-				fmt.Printf("Error: Failed to append to existing hook: %v\n", err)
-
-				return
+				return fmt.Errorf("append hook: %w", err)
 			}
 			fmt.Printf("✓ %s check appended successfully to %s\n", binaryName, hookPath)
+			return nil
 
 		} else {
 			// File does not exist, create a new one.
@@ -108,13 +99,43 @@ If a pre-commit hook already exists, you will be asked whether to append.`,
 			newHookContent := "#!/bin/sh" + hookScript()
 			err = os.WriteFile(hookPath, []byte(newHookContent), executableFilePermissions)
 			if err != nil {
-				fmt.Printf("Error installing hook: %v\n", err)
-
-				return
+				return fmt.Errorf("install hook: %w", err)
 			}
 			fmt.Printf("✓ %s pre-commit hook installed successfully in %s\n", binaryName, hookPath)
+			return nil
 		}
 	},
+}
+
+// gitHooksPath asks Git for the repository-specific hooks directory. This
+// works for linked worktrees, submodules, and bare repositories.
+func gitHooksPath() (string, error) {
+	custom := exec.Command("git", "config", "--get", "core.hooksPath")
+	if output, err := custom.Output(); err == nil {
+		path := strings.TrimSpace(string(output))
+		if filepath.IsAbs(path) {
+			return path, nil
+		}
+		rootOutput, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
+		if err != nil {
+			return "", err
+		}
+		return filepath.Join(strings.TrimSpace(string(rootOutput)), path), nil
+	}
+
+	cmd := exec.Command("git", "rev-parse", "--git-path", "hooks")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	path := strings.TrimSpace(string(output))
+	if !filepath.IsAbs(path) {
+		path, err = filepath.Abs(path)
+		if err != nil {
+			return "", err
+		}
+	}
+	return path, nil
 }
 
 // findGitRoot searches for the root of the git repository.

@@ -22,63 +22,30 @@ type useRunner struct {
 }
 
 // run is the core logic for the use command.
-func (u *useRunner) run(cmd *cobra.Command, args []string) {
+func (u *useRunner) run(cmd *cobra.Command, args []string) error {
 	profileName := args[0]
+	if err := config.ValidateProfileName(profileName); err != nil {
+		return err
+	}
 
 	cfg, err := u.load()
 	if err != nil {
-		fmt.Printf("Error loading config: %v\n", err)
-
-		return
+		return fmt.Errorf("load configuration: %w", err)
 	}
 
 	profile, exists := cfg.Profiles[profileName]
 	if !exists {
-		fmt.Printf("Error: Profile '%s' not found.\n", profileName)
-
-		return
+		return fmt.Errorf("profile %q not found", profileName)
 	}
 
-	// Action 1: Set the global git config for user name and email.
-	if err := u.setGlobalGit("user.name", profile.Name); err != nil {
-		fmt.Printf("Error setting git user.name: %v\n", err)
-
-		return
-	}
-
-	if err := u.setGlobalGit("user.email", profile.Email); err != nil {
-		fmt.Printf("Error setting git user.email: %v\n", err)
-
-		return
-	}
-
-	if profile.SigningKey != "" {
-		if err := u.setGlobalGit("user.signingkey", profile.SigningKey); err != nil {
-			fmt.Printf("Error setting git user.signingkey: %v\n", err)
-
-			return
-		}
-	} else if u.unsetGlobalGit != nil {
-		_ = u.unsetGlobalGit("user.signingkey")
-	}
-
-	if profile.SSHKey != "" {
-		sshCommand := fmt.Sprintf("ssh -i %s", profile.SSHKey)
-		if err := u.setGlobalGit("core.sshCommand", sshCommand); err != nil {
-			fmt.Printf("Error setting git core.sshCommand: %v\n", err)
-
-			return
-		}
-	} else if u.unsetGlobalGit != nil {
-		_ = u.unsetGlobalGit("core.sshCommand")
+	if err := applyProfileToGlobal(profile, u.setGlobalGit, u.unsetGlobalGit); err != nil {
+		return fmt.Errorf("apply Git profile: %w", err)
 	}
 
 	// Action 2: Set this profile as the active one in gitego's config.
 	cfg.ActiveProfile = profileName
 	if err := u.save(cfg); err != nil {
-		fmt.Printf("Error saving active profile setting: %v\n", err)
-
-		return
+		return fmt.Errorf("save active profile: %w", err)
 	}
 
 	// Action 3: If on macOS, also preemptively set the credential
@@ -91,6 +58,47 @@ func (u *useRunner) run(cmd *cobra.Command, args []string) {
 	}
 
 	fmt.Printf("✓ Set active profile to '%s'.\n", profileName)
+	return nil
+}
+
+func applyProfileToGlobal(profile *config.Profile, set func(string, string) error, unset func(string) error) error {
+	for key, value := range map[string]string{"user.name": profile.Name, "user.email": profile.Email} {
+		if err := set(key, value); err != nil {
+			return fmt.Errorf("setting %s: %w", key, err)
+		}
+	}
+
+	if profile.SigningKey != "" {
+		if err := set("user.signingkey", profile.SigningKey); err != nil {
+			return fmt.Errorf("setting user.signingkey: %w", err)
+		}
+		format := "openpgp"
+		if config.IsSSHSigningKey(profile.SigningKey) {
+			format = "ssh"
+		}
+		if err := set("gpg.format", format); err != nil {
+			return fmt.Errorf("setting gpg.format: %w", err)
+		}
+	} else if unset != nil {
+		if err := unset("user.signingkey"); err != nil {
+			return err
+		}
+		if err := unset("gpg.format"); err != nil {
+			return err
+		}
+	}
+
+	if profile.SSHKey != "" {
+		if err := set("core.sshCommand", config.SSHCommand(profile.SSHKey)); err != nil {
+			return fmt.Errorf("setting core.sshCommand: %w", err)
+		}
+	} else if unset != nil {
+		if err := unset("core.sshCommand"); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 var useCmd = &cobra.Command{
@@ -101,7 +109,7 @@ for any repository that does not have a specific auto-switch rule.
 This command updates your global .gitconfig, sets the active profile for the
 credential helper, and preemptively updates the macOS Keychain.`,
 	Args: cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		runner := &useRunner{
 			load:             config.Load,
 			save:             func(c *config.Config) error { return c.Save() },
@@ -111,7 +119,7 @@ credential helper, and preemptively updates the macOS Keychain.`,
 			getOS:            func() string { return runtime.GOOS },
 			getToken:         config.GetToken,
 		}
-		runner.run(cmd, args)
+		return runner.run(cmd, args)
 	},
 }
 

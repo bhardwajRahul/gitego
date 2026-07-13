@@ -3,24 +3,45 @@
 package config
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"unicode"
 
+	"al.essio.dev/pkg/shellescape"
 	"gopkg.in/yaml.v3"
 )
 
 // Profile represents a single user profile with a name and email.
 type Profile struct {
-	Name       string `yaml:"name"`
-	Email      string `yaml:"email"`
-	Username   string `yaml:"username,omitempty"`
-	SSHKey     string `yaml:"ssh_key,omitempty"`
-	SigningKey string `yaml:"signing_key,omitempty"`
-	PAT        string `yaml:"-"`
+	Name       string   `yaml:"name"`
+	Email      string   `yaml:"email"`
+	Username   string   `yaml:"username,omitempty"`
+	SSHKey     string   `yaml:"ssh_key,omitempty"`
+	SigningKey string   `yaml:"signing_key,omitempty"`
+	Hosts      []string `yaml:"hosts,omitempty"`
+	PAT        string   `yaml:"-"`
+}
+
+// CredentialHosts returns the hosts a profile may authenticate to. Hostless
+// legacy profiles retain their historical GitHub-only behavior.
+func (p *Profile) CredentialHosts() []string {
+	if len(p.Hosts) == 0 {
+		return []string{"github.com"}
+	}
+	return p.Hosts
+}
+
+// SupportsCredentialHost reports whether a profile is explicitly scoped to a host.
+func (p *Profile) SupportsCredentialHost(host string) bool {
+	for _, configured := range p.CredentialHosts() {
+		if strings.EqualFold(strings.TrimSpace(configured), host) {
+			return true
+		}
+	}
+	return false
 }
 
 // AutoRule represents a single directory-to-profile mapping.
@@ -40,7 +61,7 @@ const (
 	// dirPermissions are the default permissions for directories created by gitego.
 	dirPermissions = 0755
 	// filePermissions are the default permissions for files created by gitego.
-	filePermissions = 0644
+	filePermissions = 0600
 )
 
 var (
@@ -62,6 +83,17 @@ func init() {
 
 // Load reads and decodes the gitego config.yaml file and validates it.
 func Load() (*Config, error) {
+	return load(true)
+}
+
+// LoadQuiet reads configuration without emitting consistency warnings. It is
+// intended for Git's credential-helper protocol, where unsolicited stderr
+// output is treated as a transport error by some clients.
+func LoadQuiet() (*Config, error) {
+	return load(false)
+}
+
+func load(validate bool) (*Config, error) {
 	cfg := &Config{
 		Profiles: make(map[string]*Profile),
 	}
@@ -79,7 +111,9 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("could not parse config file: %w", err)
 	}
 
-	validateConfig(cfg)
+	if validate {
+		validateConfig(cfg)
+	}
 
 	return cfg, nil
 }
@@ -177,7 +211,7 @@ func (c *Config) findBestMatchingRule(currentAbsDir string) *AutoRule {
 	bestMatchPath := ""
 
 	for _, rule := range c.AutoRules {
-		ruleAbsPath, err := cleanPath(rule.Path)
+		ruleAbsPath, err := NormalizeAutoRulePath(rule.Path)
 		if err != nil {
 			continue
 		}
@@ -203,7 +237,9 @@ func (c *Config) isPathMatch(currentAbsDir, ruleAbsPath string) bool {
 	return strings.HasPrefix(compareDir, compareRulePath)
 }
 
-func cleanPath(path string) (string, error) {
+// NormalizeAutoRulePath returns an absolute, symlink-aware, slash-normalized
+// directory path suitable for both storage and matching.
+func NormalizeAutoRulePath(path string) (string, error) {
 	ruleEvalPath, err := filepath.EvalSymlinks(path)
 	if err != nil {
 		ruleEvalPath = path
@@ -224,55 +260,79 @@ func cleanPath(path string) (string, error) {
 }
 
 func EnsureProfileGitconfig(profileName string, profile *Profile) error {
+	if err := ValidateProfileName(profileName); err != nil {
+		return err
+	}
 	if err := os.MkdirAll(profilesDir, dirPermissions); err != nil {
 		return fmt.Errorf("could not create profiles directory: %w", err)
 	}
 
-	content := fmt.Sprintf("[user]\n    name = %s\n    email = %s\n", profile.Name, profile.Email)
+	name, err := quoteGitConfigValue(profile.Name)
+	if err != nil {
+		return fmt.Errorf("invalid profile name value: %w", err)
+	}
+	email, err := quoteGitConfigValue(profile.Email)
+	if err != nil {
+		return fmt.Errorf("invalid profile email value: %w", err)
+	}
+
+	content := fmt.Sprintf("[user]\n    name = %s\n    email = %s\n", name, email)
 
 	if profile.SigningKey != "" {
-		content += fmt.Sprintf("    signingkey = %s\n", profile.SigningKey)
+		signingKey, err := quoteGitConfigValue(profile.SigningKey)
+		if err != nil {
+			return fmt.Errorf("invalid signing key: %w", err)
+		}
+		content += fmt.Sprintf("    signingkey = %s\n", signingKey)
+		if IsSSHSigningKey(profile.SigningKey) {
+			content += "\n[gpg]\n    format = ssh\n"
+		}
 	}
 
 	if profile.SSHKey != "" {
-		sshCommand := fmt.Sprintf("ssh -i %s", profile.SSHKey)
+		sshCommand, err := quoteGitConfigValue(SSHCommand(profile.SSHKey))
+		if err != nil {
+			return fmt.Errorf("invalid SSH key: %w", err)
+		}
 		coreBlock := fmt.Sprintf("\n[core]\n    sshCommand = %s\n", sshCommand)
 		content += coreBlock
 	}
 
-	filePath := filepath.Join(profilesDir, fmt.Sprintf("%s.gitconfig", profileName))
+	filePath, err := ProfileGitconfigPath(profileName)
+	if err != nil {
+		return err
+	}
 
 	return os.WriteFile(filePath, []byte(content), filePermissions)
 }
 
 func AddIncludeIf(profileName string, dirPath string) error {
-	profileConfigPath := filepath.ToSlash(filepath.Join(profilesDir, fmt.Sprintf("%s.gitconfig", profileName)))
-	includeLine := fmt.Sprintf("[includeIf \"gitdir:%s\"]\n    path = %s", dirPath, profileConfigPath)
+	if err := ValidateProfileName(profileName); err != nil {
+		return err
+	}
+	if err := validateGitConfigValue(dirPath); err != nil {
+		return fmt.Errorf("invalid auto-rule path: %w", err)
+	}
+	profileConfigPath, err := ProfileGitconfigPath(profileName)
+	if err != nil {
+		return err
+	}
+	profileConfigPath = filepath.ToSlash(profileConfigPath)
+	condition, _ := quoteGitConfigValue("gitdir:" + dirPath)
+	quotedPath, _ := quoteGitConfigValue(profileConfigPath)
+	includeLine := fmt.Sprintf("[includeIf %s]\n    path = %s", condition, quotedPath)
 
 	displayConfigPath := fmt.Sprintf("~/.gitego/profiles/%s.gitconfig", profileName)
 	displayLine := fmt.Sprintf("[includeIf \"gitdir:%s\"]\n    path = %s", dirPath, displayConfigPath)
 
-	file, err := os.Open(gitConfigPath)
+	input, err := os.ReadFile(gitConfigPath)
 	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("could not open global .gitconfig: %w", err)
+		return fmt.Errorf("could not read global .gitconfig: %w", err)
 	}
+	if hasIncludeIfRule(strings.Split(string(input), "\n"), condition, profileConfigPath) {
+		fmt.Printf("✓ Auto-switch rule for profile '%s' on path '%s' already exists.\n", profileName, dirPath)
 
-	if file != nil {
-		defer func() {
-			if err := file.Close(); err != nil {
-				fmt.Printf("Warning: Failed to close gitconfig file: %v\n", err)
-			}
-		}()
-
-		scanner := bufio.NewScanner(file)
-		for scanner.Scan() {
-			lineFromConfig := filepath.ToSlash(scanner.Text())
-			if strings.Contains(lineFromConfig, profileConfigPath) {
-				fmt.Printf("✓ Auto-switch rule for profile '%s' on path '%s' already exists.\n", profileName, dirPath)
-
-				return nil
-			}
-		}
+		return nil
 	}
 
 	f, err := os.OpenFile(gitConfigPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, filePermissions)
@@ -296,8 +356,11 @@ func AddIncludeIf(profileName string, dirPath string) error {
 
 // RemoveIncludeIf finds and removes the includeIf directive associated with a profile.
 func RemoveIncludeIf(profileName string) error {
-	profileConfigFilename := fmt.Sprintf("%s.gitconfig", profileName)
-	profileConfigPath := filepath.ToSlash(filepath.Join(profilesDir, profileConfigFilename))
+	profileConfigPath, err := ProfileGitconfigPath(profileName)
+	if err != nil {
+		return err
+	}
+	profileConfigPath = filepath.ToSlash(profileConfigPath)
 
 	input, err := os.ReadFile(gitConfigPath)
 	if err != nil {
@@ -315,28 +378,59 @@ func RemoveIncludeIf(profileName string) error {
 	return os.WriteFile(gitConfigPath, []byte(output), filePermissions)
 }
 
+// RemoveIncludeIfAt removes one directory-specific includeIf rule while
+// retaining other rules that use the same profile.
+func RemoveIncludeIfAt(profileName, dirPath string) error {
+	profileConfigPath, err := ProfileGitconfigPath(profileName)
+	if err != nil {
+		return err
+	}
+	condition, err := quoteGitConfigValue("gitdir:" + dirPath)
+	if err != nil {
+		return err
+	}
+	input, err := os.ReadFile(gitConfigPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	lines := strings.Split(string(input), "\n")
+	var kept []string
+	for i := 0; i < len(lines); {
+		if strings.TrimSpace(lines[i]) == fmt.Sprintf("[includeIf %s]", condition) && isGitegoRule(lines, i, filepath.ToSlash(profileConfigPath)) {
+			kept = removeCommentIfPresent(kept, lines, i)
+			i++
+			for i < len(lines) && !strings.HasPrefix(strings.TrimSpace(lines[i]), "[") {
+				i++
+			}
+			continue
+		}
+		kept = append(kept, lines[i])
+		i++
+	}
+	return os.WriteFile(gitConfigPath, []byte(formatOutput(kept)), filePermissions)
+}
+
 func removeGitegoRules(lines []string, profileConfigPath string) []string {
 	var newLines []string
 
-	var removing bool
-
-	for i, line := range lines {
+	for i := 0; i < len(lines); {
+		line := lines[i]
 		trimmedLine := strings.TrimSpace(line)
 
 		if strings.HasPrefix(trimmedLine, "[includeIf") && isGitegoRule(lines, i, profileConfigPath) {
-			removing = true
 			newLines = removeCommentIfPresent(newLines, lines, i)
-
+			i++
+			for i < len(lines) && !strings.HasPrefix(strings.TrimSpace(lines[i]), "[") {
+				i++
+			}
 			continue
 		}
 
-		if !removing {
-			newLines = append(newLines, line)
-		}
-
-		if removing && isNewSection(trimmedLine) {
-			removing = false
-		}
+		newLines = append(newLines, line)
+		i++
 	}
 
 	return newLines
@@ -378,4 +472,113 @@ func isGitegoRule(lines []string, index int, profileConfigPath string) bool {
 	}
 
 	return false
+}
+
+// ProfileGitconfigPath returns the only permitted location for a generated profile config.
+func ProfileGitconfigPath(profileName string) (string, error) {
+	if err := ValidateProfileName(profileName); err != nil {
+		return "", err
+	}
+
+	return filepath.Join(profilesDir, profileName+".gitconfig"), nil
+}
+
+// ValidateProfileName rejects path components and control characters before a profile
+// name is used in a file path or Git config.
+func ValidateProfileName(profileName string) error {
+	if profileName == "" {
+		return fmt.Errorf("profile name must not be empty")
+	}
+	for _, r := range profileName {
+		if !(unicode.IsLetter(r) || unicode.IsDigit(r) || r == '.' || r == '_' || r == '-') {
+			return fmt.Errorf("invalid profile name %q: use only letters, numbers, '.', '_' and '-'", profileName)
+		}
+	}
+	if profileName == "." || profileName == ".." {
+		return fmt.Errorf("invalid profile name %q", profileName)
+	}
+
+	return nil
+}
+
+// IsSSHSigningKey identifies the documented SSH-key-path form of signing keys.
+func IsSSHSigningKey(key string) bool {
+	return filepath.IsAbs(key) || strings.HasPrefix(key, "./") || strings.HasPrefix(key, "../") || strings.HasPrefix(key, "~/") || strings.Contains(key, "\\")
+}
+
+// SSHCommand returns a shell-safe SSH invocation for Git's core.sshCommand.
+func SSHCommand(keyPath string) string {
+	return "ssh -i " + shellescape.Quote(keyPath)
+}
+
+func quoteGitConfigValue(value string) (string, error) {
+	if err := validateGitConfigValue(value); err != nil {
+		return "", err
+	}
+
+	value = strings.ReplaceAll(value, "\\", "\\\\")
+	value = strings.ReplaceAll(value, "\"", "\\\"")
+	return "\"" + value + "\"", nil
+}
+
+func validateGitConfigValue(value string) error {
+	for _, r := range value {
+		if unicode.IsControl(r) {
+			return fmt.Errorf("control characters are not allowed")
+		}
+	}
+	return nil
+}
+
+func hasIncludeIfRule(lines []string, condition, profileConfigPath string) bool {
+	for i, line := range lines {
+		if strings.TrimSpace(line) != fmt.Sprintf("[includeIf %s]", condition) {
+			continue
+		}
+		for j := i + 1; j < len(lines) && !strings.HasPrefix(strings.TrimSpace(lines[j]), "["); j++ {
+			parts := strings.SplitN(strings.TrimSpace(lines[j]), "=", 2)
+			if len(parts) == 2 && strings.TrimSpace(parts[0]) == "path" {
+				value := strings.Trim(strings.TrimSpace(parts[1]), "\"")
+				return filepath.ToSlash(value) == profileConfigPath
+			}
+		}
+	}
+
+	return false
+}
+
+// VerifyAutoRules reports drift between config.yaml, generated profile
+// includes, and ~/.gitconfig. It does not modify user configuration.
+func (c *Config) VerifyAutoRules() []error {
+	var problems []error
+	if c.ActiveProfile != "" {
+		if _, ok := c.Profiles[c.ActiveProfile]; !ok {
+			problems = append(problems, fmt.Errorf("active profile %q does not exist", c.ActiveProfile))
+		}
+	}
+	input, err := os.ReadFile(gitConfigPath)
+	if err != nil && !os.IsNotExist(err) {
+		return []error{fmt.Errorf("read global gitconfig: %w", err)}
+	}
+	lines := strings.Split(string(input), "\n")
+	for _, rule := range c.AutoRules {
+		profile, ok := c.Profiles[rule.Profile]
+		if !ok || profile == nil {
+			problems = append(problems, fmt.Errorf("%s: profile %q does not exist", rule.Path, rule.Profile))
+			continue
+		}
+		profilePath, err := ProfileGitconfigPath(rule.Profile)
+		if err != nil {
+			problems = append(problems, err)
+			continue
+		}
+		if _, err := os.Stat(profilePath); err != nil {
+			problems = append(problems, fmt.Errorf("%s: profile include %q is missing", rule.Path, profilePath))
+		}
+		condition, _ := quoteGitConfigValue("gitdir:" + rule.Path)
+		if !hasIncludeIfRule(lines, condition, filepath.ToSlash(profilePath)) {
+			problems = append(problems, fmt.Errorf("%s: global includeIf rule for profile %q is missing", rule.Path, rule.Profile))
+		}
+	}
+	return problems
 }

@@ -17,32 +17,29 @@ var (
 	addUsername   string
 	addSSHKey     string
 	addSigningKey string
-	addPAT        string
+	addHosts      []string
 )
 
 // adder holds the dependencies for the add command, allowing them to be mocked for testing.
 type adder struct {
-	load     func() (*config.Config, error)
-	save     func(*config.Config) error
-	setToken func(string, string) error
+	load func() (*config.Config, error)
+	save func(*config.Config) error
 }
 
 // run is the core logic for the add command.
-func (a *adder) run(cmd *cobra.Command, args []string) {
+func (a *adder) run(cmd *cobra.Command, args []string) error {
 	profileName := args[0]
+	if err := config.ValidateProfileName(profileName); err != nil {
+		return err
+	}
 
 	cfg, err := a.load()
 	if err != nil {
-		fmt.Printf("Error loading configuration: %v\n", err)
-
-		return
+		return fmt.Errorf("load configuration: %w", err)
 	}
 
 	if _, exists := cfg.Profiles[profileName]; exists {
-		fmt.Printf("Error: Profile '%s' already exists.\n", profileName)
-		fmt.Printf("Use '%s edit %s' to modify it, or '%s rm %s' to remove it.\n", binaryName, profileName, binaryName, profileName)
-
-		return
+		return fmt.Errorf("profile %q already exists; use '%s edit %s' or '%s rm %s'", profileName, binaryName, profileName, binaryName, profileName)
 	}
 
 	newProfile := &config.Profile{
@@ -51,25 +48,17 @@ func (a *adder) run(cmd *cobra.Command, args []string) {
 		Username:   addUsername,
 		SSHKey:     addSSHKey,
 		SigningKey: addSigningKey,
+		Hosts:      addHosts,
 	}
 
 	cfg.Profiles[profileName] = newProfile
 
 	if err := a.save(cfg); err != nil {
-		fmt.Printf("Error saving configuration: %v\n", err)
-
-		return
-	}
-
-	if addPAT != "" {
-		if err := a.setToken(profileName, addPAT); err != nil {
-			fmt.Printf("Warning: Profile saved, but failed to store PAT securely: %v\n", err)
-
-			return
-		}
+		return fmt.Errorf("save configuration: %w", err)
 	}
 
 	fmt.Printf("✓ Profile '%s' added successfully.\n", profileName)
+	return nil
 }
 
 var addCmd = &cobra.Command{
@@ -85,13 +74,12 @@ with a specific Git user name and email address.`,
 		return nil
 	},
 	// The Run function is a wrapper around our testable run method.
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		a := &adder{
-			load:     config.Load,
-			save:     func(c *config.Config) error { return c.Save() },
-			setToken: config.SetToken,
+			load: config.Load,
+			save: func(c *config.Config) error { return c.Save() },
 		}
-		a.run(cmd, args)
+		return a.run(cmd, args)
 	},
 }
 
@@ -103,7 +91,7 @@ func init() {
 	addCmd.Flags().StringVar(&addUsername, "username", "", "Login username for the service (e.g., GitHub username)")
 	addCmd.Flags().StringVar(&addSSHKey, "ssh-key", "", "Path to the SSH key for this profile (optional)")
 	addCmd.Flags().StringVar(&addSigningKey, "signing-key", "", "GPG key ID or SSH key path for commit signing (optional)")
-	addCmd.Flags().StringVar(&addPAT, "pat", "", "Personal Access Token for this profile (stored securely)")
+	addCmd.Flags().StringSliceVar(&addHosts, "host", nil, "HTTPS host this profile may authenticate to (repeat or comma-separate; defaults to github.com)")
 
 	if err := addCmd.MarkFlagRequired("name"); err != nil {
 		log.Fatalf("Failed to mark name flag as required: %v", err)

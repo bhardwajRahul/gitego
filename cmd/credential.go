@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/bgreenwell/git-ego/config"
 	"github.com/spf13/cobra"
@@ -22,12 +23,28 @@ type credentialRunner struct {
 
 // run is the core logic for the credential command.
 func (r *credentialRunner) run(cmd *cobra.Command, args []string) {
-	// A credential helper must read the input Git sends it on stdin.
-	// We don't need to use the input for our logic, but we must consume it
-	// to correctly fulfill the credential helper protocol.
+	// Git invokes helpers as "get", "store", or "erase". Only get is
+	// allowed to emit a credential response.
+	if len(args) != 1 || args[0] != "get" {
+		return
+	}
+
+	// Parse (rather than merely consume) Git's credential context. A global
+	// helper must never offer a GitHub PAT to another HTTPS host.
+	request := make(map[string]string)
 	scanner := bufio.NewScanner(r.stdin)
 	for scanner.Scan() {
-		// We can just ignore the lines for now.
+		line := scanner.Text()
+		if line == "" {
+			break
+		}
+		key, value, ok := strings.Cut(line, "=")
+		if ok {
+			request[key] = value
+		}
+	}
+	if scanner.Err() != nil || request["protocol"] != "https" || request["host"] == "" {
+		return
 	}
 
 	cfg, err := r.loadConfig()
@@ -42,7 +59,7 @@ func (r *credentialRunner) run(cmd *cobra.Command, args []string) {
 	}
 
 	profile, exists := cfg.Profiles[activeProfileName]
-	if !exists || profile.Username == "" {
+	if !exists || profile.Username == "" || !profile.SupportsCredentialHost(request["host"]) {
 		return // Active profile doesn't exist or has no username for auth.
 	}
 
@@ -66,7 +83,7 @@ var credentialCmd = &cobra.Command{
 	Hidden: true, // Hide this from the standard help command.
 	Run: func(cmd *cobra.Command, args []string) {
 		runner := &credentialRunner{
-			loadConfig: config.Load,
+			loadConfig: config.LoadQuiet,
 			getToken:   config.GetToken,
 			stdin:      os.Stdin,
 			stdout:     os.Stdout,

@@ -60,8 +60,13 @@ git-ego add personal --name "Brandon" --email "brandon.personal@email.com" --use
 # A work profile that uses a specific SSH key
 git-ego add work-ssh --name "Brandon Greenwell" --email "brandon.work@company.com" --username "bgreenwell-work" --ssh-key ~/.ssh/id_work
 
-# A client profile that uses a PAT for HTTPS
-git-ego add client-abc --name "Brandon G." --email "brandon@client-abc.com" --username "bgreenwell-client" --pat "ghp_YourClientPATHere"
+# A client profile that uses a PAT for HTTPS. Store the token separately so
+# it never enters shell history or the process list.
+git-ego add client-abc --name "Brandon G." --email "brandon@client-abc.com" --username "bgreenwell-client"
+printf '%s' "$CLIENT_GITHUB_TOKEN" | git-ego pat set client-abc
+
+# A non-GitHub profile must explicitly name its HTTPS host.
+git-ego add gitlab-work --name "Brandon" --email "brandon@company.com" --username "bgreenwell" --host gitlab.company.com
 ```
 
 #### 2\. List your configured profiles
@@ -113,6 +118,10 @@ Now, tell `git-ego` which profiles to use for which project directories.
 ```bash
 git-ego auto ~/dev/work/ work-ssh
 git-ego auto ~/dev/personal/ personal
+
+# Review or remove one rule later.
+git-ego auto list
+git-ego auto rm ~/dev/personal/
 ```
 
 When you `cd` into `~/dev/work/any-repo`, your `user.name`, `user.email`, and `sshCommand` will be automatically switched to the `work-ssh` profile.
@@ -158,8 +167,10 @@ When you `cd` into `~/dev/work/any-repo`, your `user.name`, `user.email`, and `s
 | `git-ego auto <path> <name>` | | Sets a profile to be used automatically for a given directory path. |
 | `git-ego status` | | Displays the current effective Git user and the source of the configuration. |
 | `git-ego edit <name>` | | Edits an existing user profile's attributes. |
+| `git-ego pat set <name>` | | Stores a PAT read from standard input. |
 | `git-ego install-hook` | | Installs a pre-commit hook in the current repo to prevent misattributed commits. |
 | `git-ego completion <shell>`| | Generates shell completion scripts. |
+| `git-ego doctor` | | Checks auto-switch rules for Git/YAML drift. |
 | `git-ego --version` | `-v` | Prints the application version. |
 
 ## How it works

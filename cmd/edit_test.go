@@ -26,8 +26,6 @@ func TestEditCommand(t *testing.T) {
 	// Setup: Create an initial mock config
 	mockCfg := setupEditTestConfig()
 
-	var patSetForProfile, patValue string
-
 	// Create the test runner with mocked dependencies
 	runner := &editor{
 		load: func() (*config.Config, error) {
@@ -40,33 +38,24 @@ func TestEditCommand(t *testing.T) {
 
 			return nil
 		},
-		setToken: func(profileName, token string) error {
-			patSetForProfile = profileName
-			patValue = token
-
-			return nil
-		},
 	}
 
 	// Execute the command's logic
 	args := []string{"work"}
 
-	cleanup := setEditCommandFlags("new-email@example.com", "new-pat-123")
+	cleanup := setEditCommandFlags("new-email@example.com")
 	defer cleanup()
 
 	runner.run(editCmd, args)
 
 	// Assertions
-	validateEditCommandResults(t, mockCfg, patSetForProfile, patValue)
+	validateEditCommandResults(t, mockCfg)
 }
 
 // setEditCommandFlags sets the command flags for testing.
-func setEditCommandFlags(email, pat string) func() {
+func setEditCommandFlags(email string) func() {
 	if err := editCmd.Flags().Set("email", email); err != nil {
 		log.Fatalf("Failed to set email flag: %v", err)
-	}
-	if err := editCmd.Flags().Set("pat", pat); err != nil {
-		log.Fatalf("Failed to set pat flag: %v", err)
 	}
 
 	// Return cleanup function
@@ -74,14 +63,11 @@ func setEditCommandFlags(email, pat string) func() {
 		if err := editCmd.Flags().Set("email", ""); err != nil {
 			log.Printf("Warning: Failed to reset email flag: %v", err)
 		}
-		if err := editCmd.Flags().Set("pat", ""); err != nil {
-			log.Printf("Warning: Failed to reset pat flag: %v", err)
-		}
 	}
 }
 
 // validateEditCommandResults validates the edit command results.
-func validateEditCommandResults(t *testing.T, mockCfg *config.Config, patSetForProfile, patValue string) {
+func validateEditCommandResults(t *testing.T, mockCfg *config.Config) {
 	t.Helper()
 
 	updatedProfile, ok := mockCfg.Profiles["work"]
@@ -103,8 +89,4 @@ func validateEditCommandResults(t *testing.T, mockCfg *config.Config, patSetForP
 		t.Errorf("Expected username to remain 'original_user', but it was changed to '%s'", updatedProfile.Username)
 	}
 
-	// Check if the PAT was set correctly
-	if patSetForProfile != "work" || patValue != "new-pat-123" {
-		t.Error("Expected SetToken to be called with the new PAT for the 'work' profile.")
-	}
 }

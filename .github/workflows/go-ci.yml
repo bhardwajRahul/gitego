@@ -71,3 +71,6 @@ jobs:
     # The `./...` pattern tells Go to run tests in the current directory and all subdirectories.
     - name: Run Tests
       run: go test -v ./...
+
+    - name: Vet
+      run: go vet ./...

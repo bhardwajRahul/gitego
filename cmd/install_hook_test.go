@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -21,6 +22,9 @@ func setupTestGitRepo(t *testing.T) (repoRoot string, hooksDir string) {
 		t.Fatalf("Failed to create temp repo root: %v", err)
 	}
 
+	if output, err := exec.Command("git", "init", repoRoot).CombinedOutput(); err != nil {
+		t.Fatalf("Failed to initialize test repo: %v: %s", err, output)
+	}
 	hooksDir = filepath.Join(repoRoot, ".git", "hooks")
 	if err := os.MkdirAll(hooksDir, 0755); err != nil {
 		t.Fatalf("Failed to create temp hooks dir: %v", err)
@@ -155,7 +159,9 @@ func TestInstallHook(t *testing.T) {
 		defer cleanup()
 
 		output := captureOutput(t, "", func() {
-			installHookCmd.Run(installHookCmd, []string{})
+			if err := installHookCmd.RunE(installHookCmd, []string{}); err != nil {
+				t.Fatal(err)
+			}
 		})
 
 		validateHookCreation(t, hooksDir, output)
@@ -169,7 +175,9 @@ func TestInstallHook(t *testing.T) {
 		createExistingHook(hooksDir, initialContent)
 
 		output := captureOutput(t, "y\n", func() {
-			installHookCmd.Run(installHookCmd, []string{})
+			if err := installHookCmd.RunE(installHookCmd, []string{}); err != nil {
+				t.Fatal(err)
+			}
 		})
 
 		validateHookAppend(t, hooksDir, initialContent, output)
@@ -182,7 +190,9 @@ func TestInstallHook(t *testing.T) {
 		createExistingHook(hooksDir, "#!/bin/sh\n"+binaryName+" internal check-commit\n")
 
 		output := captureOutput(t, "", func() {
-			installHookCmd.Run(installHookCmd, []string{})
+			if err := installHookCmd.RunE(installHookCmd, []string{}); err != nil {
+				t.Fatal(err)
+			}
 		})
 
 		if !strings.Contains(output, "already installed") {

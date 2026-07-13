@@ -6,10 +6,10 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/bgreenwell/git-ego/config"
+	"github.com/bgreenwell/git-ego/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -19,28 +19,30 @@ var (
 
 // rmRunner holds the dependencies for the rm command for mocking.
 type rmRunner struct {
-	load             func() (*config.Config, error)
-	save             func(*config.Config) error
-	removeIncludeIf  func(string) error
-	removeProfileCfg func(string) error
-	deleteToken      func(string) error
+	load                func() (*config.Config, error)
+	save                func(*config.Config) error
+	removeIncludeIf     func(string) error
+	removeProfileCfg    func(string) error
+	deleteToken         func(string) error
+	deleteGitCredential func(string) error
+	unsetGlobalGit      func(string) error
 }
 
 // run is the core logic for the rm command.
-func (r *rmRunner) run(cmd *cobra.Command, args []string) {
+func (r *rmRunner) run(cmd *cobra.Command, args []string) error {
 	profileName := args[0]
+	if err := config.ValidateProfileName(profileName); err != nil {
+		return err
+	}
 
 	cfg, err := r.load()
 	if err != nil {
-		fmt.Printf("Error loading configuration: %v\n", err)
-
-		return
+		return fmt.Errorf("load configuration: %w", err)
 	}
 
-	if _, exists := cfg.Profiles[profileName]; !exists {
-		fmt.Printf("Error: Profile '%s' not found.\n", profileName)
-
-		return
+	profile, exists := cfg.Profiles[profileName]
+	if !exists {
+		return fmt.Errorf("profile %q not found", profileName)
 	}
 
 	if !forceFlag {
@@ -51,20 +53,18 @@ func (r *rmRunner) run(cmd *cobra.Command, args []string) {
 
 		response, _ := reader.ReadString('\n')
 		if strings.TrimSpace(strings.ToLower(response)) != "y" {
-			fmt.Println("Removal cancelled.")
-
-			return
+			return nil
 		}
 	}
 
 	// 1. Remove the includeIf directive from the global .gitconfig.
 	if err := r.removeIncludeIf(profileName); err != nil {
-		fmt.Printf("Warning: Failed to remove rule from .gitconfig: %v\n", err)
+		return fmt.Errorf("remove Git include rule: %w", err)
 	}
 
 	// 2. Delete the profile-specific .gitconfig file.
-	if err := r.removeProfileCfg(profileName); err != nil {
-		fmt.Printf("Warning: Failed to remove profile config file: %v\n", err)
+	if err := r.removeProfileCfg(profileName); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove profile config: %w", err)
 	}
 
 	// 3. Remove any auto-rules from gitego's config that use this profile.
@@ -80,17 +80,36 @@ func (r *rmRunner) run(cmd *cobra.Command, args []string) {
 
 	// 4. Delete the profile itself.
 	delete(cfg.Profiles, profileName)
+	wasActive := cfg.ActiveProfile == profileName
+	if wasActive {
+		cfg.ActiveProfile = ""
+	}
 
 	if err := r.save(cfg); err != nil {
-		fmt.Printf("Error saving configuration: %v\n", err)
-
-		return
+		return fmt.Errorf("save configuration: %w", err)
 	}
 
 	// 5. Remove the PAT from the OS keychain.
+	// A profile may not have a token, and some headless keyring backends do not
+	// support deletion. The profile/config removal is still authoritative.
 	_ = r.deleteToken(profileName)
+	if wasActive {
+		if r.unsetGlobalGit != nil {
+			for _, key := range []string{"user.name", "user.email", "user.signingkey", "gpg.format", "core.sshCommand"} {
+				if err := r.unsetGlobalGit(key); err != nil {
+					return fmt.Errorf("unset %s: %w", key, err)
+				}
+			}
+		}
+		if r.deleteGitCredential != nil {
+			if err := r.deleteGitCredential(profile.Username); err != nil {
+				return fmt.Errorf("remove active Git credential: %w", err)
+			}
+		}
+	}
 
 	fmt.Printf("✓ Profile '%s' and all associated rules removed successfully.\n", profileName)
+	return nil
 }
 
 // rmCmd represents the rm command.
@@ -102,23 +121,23 @@ var rmCmd = &cobra.Command{
 	rules from your global .gitconfig file.`,
 	Aliases: []string{"remove"},
 	Args:    cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		runner := &rmRunner{
-			load:            config.Load,
-			save:            func(c *config.Config) error { return c.Save() },
-			removeIncludeIf: config.RemoveIncludeIf,
-			deleteToken:     config.DeleteToken,
+			load:                config.Load,
+			save:                func(c *config.Config) error { return c.Save() },
+			removeIncludeIf:     config.RemoveIncludeIf,
+			deleteToken:         config.DeleteToken,
+			deleteGitCredential: config.DeleteGitCredential,
+			unsetGlobalGit:      utils.UnsetGlobalGitConfig,
 			removeProfileCfg: func(profileName string) error {
-				home, err := os.UserHomeDir()
+				path, err := config.ProfileGitconfigPath(profileName)
 				if err != nil {
 					return err
 				}
-				path := filepath.Join(home, ".gitego", "profiles", fmt.Sprintf("%s.gitconfig", profileName))
-
 				return os.Remove(path)
 			},
 		}
-		runner.run(cmd, args)
+		return runner.run(cmd, args)
 	},
 }
 

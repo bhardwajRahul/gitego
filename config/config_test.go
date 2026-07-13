@@ -287,16 +287,16 @@ func TestEnsureProfileGitconfig_WithSigningKey(t *testing.T) {
 	contentStr := string(content)
 
 	// Assert that the signing key is present.
-	if !strings.Contains(contentStr, "signingkey = ABCD1234") {
+	if !strings.Contains(contentStr, "signingkey = \"ABCD1234\"") {
 		t.Errorf("Expected 'signingkey = ABCD1234' in gitconfig, but got:\n%s", contentStr)
 	}
 
 	// Assert that the user section is present.
-	if !strings.Contains(contentStr, "name = Test User") {
+	if !strings.Contains(contentStr, "name = \"Test User\"") {
 		t.Errorf("Expected 'name = Test User' in gitconfig, but got:\n%s", contentStr)
 	}
 
-	if !strings.Contains(contentStr, "email = test@example.com") {
+	if !strings.Contains(contentStr, "email = \"test@example.com\"") {
 		t.Errorf("Expected 'email = test@example.com' in gitconfig, but got:\n%s", contentStr)
 	}
 }
@@ -349,7 +349,119 @@ func TestEnsureProfileGitconfig_WithoutSigningKey(t *testing.T) {
 	}
 
 	// Assert that the user section is still present.
-	if !strings.Contains(contentStr, "name = Test User") {
+	if !strings.Contains(contentStr, "name = \"Test User\"") {
 		t.Errorf("Expected 'name = Test User' in gitconfig, but got:\n%s", contentStr)
+	}
+}
+
+func TestRemoveIncludeIfPreservesFollowingSection(t *testing.T) {
+	tempDir := t.TempDir()
+	originalGitConfigPath, originalProfilesDir := gitConfigPath, profilesDir
+	gitConfigPath = filepath.Join(tempDir, ".gitconfig")
+	profilesDir = filepath.Join(tempDir, ".gitego", "profiles")
+	t.Cleanup(func() { gitConfigPath, profilesDir = originalGitConfigPath, originalProfilesDir })
+
+	profilePath, err := ProfileGitconfigPath("work")
+	if err != nil {
+		t.Fatal(err)
+	}
+	content := "# gitego auto-switch rule\n[includeIf \"gitdir:/tmp/work/\"]\n    path = \"" + filepath.ToSlash(profilePath) + "\"\n[user]\n    name = \"Unrelated User\"\n"
+	if err := os.WriteFile(gitConfigPath, []byte(content), filePermissions); err != nil {
+		t.Fatal(err)
+	}
+	if err := RemoveIncludeIf("work"); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(gitConfigPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(got), "[user]\n    name = \"Unrelated User\"") {
+		t.Fatalf("following section was corrupted:\n%s", got)
+	}
+}
+
+func TestRemoveIncludeIfPreservesAdjacentIncludeRule(t *testing.T) {
+	tempDir := t.TempDir()
+	originalGitConfigPath, originalProfilesDir := gitConfigPath, profilesDir
+	gitConfigPath = filepath.Join(tempDir, ".gitconfig")
+	profilesDir = filepath.Join(tempDir, ".gitego", "profiles")
+	t.Cleanup(func() { gitConfigPath, profilesDir = originalGitConfigPath, originalProfilesDir })
+	workPath, _ := ProfileGitconfigPath("work")
+	personalPath, _ := ProfileGitconfigPath("personal")
+	content := "[includeIf \"gitdir:/tmp/work/\"]\n path = \"" + filepath.ToSlash(workPath) + "\"\n[includeIf \"gitdir:/tmp/personal/\"]\n path = \"" + filepath.ToSlash(personalPath) + "\"\n"
+	if err := os.WriteFile(gitConfigPath, []byte(content), filePermissions); err != nil {
+		t.Fatal(err)
+	}
+	if err := RemoveIncludeIf("work"); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(gitConfigPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(got), "gitdir:/tmp/personal/") || !strings.Contains(string(got), filepath.ToSlash(personalPath)) {
+		t.Fatalf("adjacent include rule was removed:\n%s", got)
+	}
+}
+
+func TestEnsureProfileGitconfigEscapesAndRejectsUnsafeValues(t *testing.T) {
+	tempDir := t.TempDir()
+	originalProfilesDir := profilesDir
+	profilesDir = tempDir
+	t.Cleanup(func() { profilesDir = originalProfilesDir })
+
+	profile := &Profile{Name: "A \"quoted\" name", Email: "user@example.com", SSHKey: "/tmp/My Key"}
+	if err := EnsureProfileGitconfig("work", profile); err != nil {
+		t.Fatal(err)
+	}
+	content, err := os.ReadFile(filepath.Join(tempDir, "work.gitconfig"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(content), `name = "A \"quoted\" name"`) || !strings.Contains(string(content), `sshCommand = "ssh -i '/tmp/My Key'"`) {
+		t.Fatalf("values were not safely quoted:\n%s", content)
+	}
+	if err := EnsureProfileGitconfig("work", &Profile{Name: "bad\n[include]", Email: "user@example.com"}); err == nil {
+		t.Fatal("expected control character to be rejected")
+	}
+}
+
+func TestEnsureProfileGitconfigSSHSigningKeySetsFormat(t *testing.T) {
+	tempDir := t.TempDir()
+	originalProfilesDir := profilesDir
+	profilesDir = tempDir
+	t.Cleanup(func() { profilesDir = originalProfilesDir })
+	if err := EnsureProfileGitconfig("work", &Profile{Name: "User", Email: "user@example.com", SigningKey: "~/.ssh/id_signing.pub"}); err != nil {
+		t.Fatal(err)
+	}
+	content, err := os.ReadFile(filepath.Join(tempDir, "work.gitconfig"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(content), "[gpg]\n    format = ssh") {
+		t.Fatalf("missing SSH signing format:\n%s", content)
+	}
+}
+
+func TestAddIncludeIfAllowsMultiplePathsForOneProfile(t *testing.T) {
+	tempDir := t.TempDir()
+	originalGitConfigPath, originalProfilesDir := gitConfigPath, profilesDir
+	gitConfigPath = filepath.Join(tempDir, ".gitconfig")
+	profilesDir = filepath.Join(tempDir, ".gitego", "profiles")
+	t.Cleanup(func() { gitConfigPath, profilesDir = originalGitConfigPath, originalProfilesDir })
+
+	if err := AddIncludeIf("work", "/tmp/first/"); err != nil {
+		t.Fatal(err)
+	}
+	if err := AddIncludeIf("work", "/tmp/second/"); err != nil {
+		t.Fatal(err)
+	}
+	content, err := os.ReadFile(gitConfigPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Count(string(content), "[includeIf") != 2 || !strings.Contains(string(content), "gitdir:/tmp/second/") {
+		t.Fatalf("expected two distinct rules:\n%s", content)
 	}
 }

@@ -47,7 +47,7 @@ func TestCredentialCommand(t *testing.T) {
 
 	// 4. Execute the command's logic
 	dummyCmd := &cobra.Command{}
-	runner.run(dummyCmd, []string{})
+	runner.run(dummyCmd, []string{"get"})
 
 	output := stdoutBuf.String()
 
@@ -60,5 +60,35 @@ func TestCredentialCommand(t *testing.T) {
 	expectedPass := "password=secret-work-token"
 	if !strings.Contains(output, expectedPass) {
 		t.Errorf("Expected output to contain '%s', but it didn't.\nOutput:\n%s", expectedPass, output)
+	}
+}
+
+func TestCredentialCommandScopesHostAndOperation(t *testing.T) {
+	runner := &credentialRunner{
+		loadConfig: func() (*config.Config, error) {
+			return &config.Config{Profiles: map[string]*config.Profile{
+				"work": {Username: "work-user"},
+			}, ActiveProfile: "work"}, nil
+		},
+		getToken: func(string) (string, error) { return "secret", nil },
+	}
+
+	for name, tc := range map[string]struct {
+		args  []string
+		stdin string
+	}{
+		"other host": {[]string{"get"}, "protocol=https\nhost=gitlab.com\n\n"},
+		"erase":      {[]string{"erase"}, "protocol=https\nhost=github.com\n\n"},
+		"store":      {[]string{"store"}, "protocol=https\nhost=github.com\n\n"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			var output bytes.Buffer
+			runner.stdin = strings.NewReader(tc.stdin)
+			runner.stdout = &output
+			runner.run(&cobra.Command{}, tc.args)
+			if output.Len() != 0 {
+				t.Fatalf("credential helper leaked a credential: %q", output.String())
+			}
+		})
 	}
 }

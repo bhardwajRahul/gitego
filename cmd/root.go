@@ -5,7 +5,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 
@@ -27,16 +26,15 @@ var (
 // rootCmd represents the base command when called without any subcommands.
 // It's the main entry point for the CLI application.
 var rootCmd = &cobra.Command{
-	Short: "A clever, context-aware identity manager for Git.",
-	Run: func(cmd *cobra.Command, _ []string) {
+	Short:         "A clever, context-aware identity manager for Git.",
+	SilenceUsage:  true,
+	SilenceErrors: true,
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		if versionFlag {
 			fmt.Printf("%s version %s\n", binaryName, version)
-
-			return
+			return nil
 		}
-		if err := cmd.Help(); err != nil {
-			log.Fatalf("Failed to show help: %v", err)
-		}
+		return cmd.Help()
 	},
 }
 

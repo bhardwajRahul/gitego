@@ -14,8 +14,6 @@ func TestAddCommand(t *testing.T) {
 		Profiles: make(map[string]*config.Profile),
 	}
 
-	var capturedTokenProfile, capturedToken string
-
 	// 2. Create an instance of our command runner with mock functions
 	a := &adder{
 		load: func() (*config.Config, error) {
@@ -26,12 +24,6 @@ func TestAddCommand(t *testing.T) {
 
 			return nil
 		},
-		setToken: func(profileName, token string) error {
-			capturedTokenProfile = profileName
-			capturedToken = token
-
-			return nil
-		},
 	}
 
 	// 3. Execute the command's logic
@@ -39,7 +31,6 @@ func TestAddCommand(t *testing.T) {
 	// Set the flag values programmatically for the test
 	addName = "Test User"
 	addEmail = "test@work.com"
-	addPAT = "test_pat_123"
 
 	a.run(addCmd, args)
 
@@ -61,7 +52,4 @@ func TestAddCommand(t *testing.T) {
 		t.Errorf("Expected profile email to be 'test@work.com', got '%s'", profile.Email)
 	}
 
-	if capturedTokenProfile != "work" || capturedToken != "test_pat_123" {
-		t.Error("SetToken was not called with the correct profile name and PAT")
-	}
 }

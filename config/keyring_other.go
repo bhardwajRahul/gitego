@@ -19,3 +19,10 @@ func SetGitCredential(username string, token string) error {
 	// used by the go-keyring library for Git credentials.
 	return keyring.Set("git", "https://github.com", token)
 }
+
+// DeleteGitCredential is a no-op outside macOS; gitego's own keyring token is
+// removed separately by DeleteToken.
+func DeleteGitCredential(username string) error {
+	_ = username
+	return nil
+}

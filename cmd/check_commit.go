@@ -40,7 +40,7 @@ func (r *checkCommitRunner) run(cmd *cobra.Command, args []string) {
 
 	expectedProfileName, _ := cfg.GetActiveProfileForCurrentDir()
 
-	if expectedProfileName == "" || expectedProfileName == cfg.ActiveProfile {
+	if expectedProfileName == "" {
 		r.exit(0)
 
 		return

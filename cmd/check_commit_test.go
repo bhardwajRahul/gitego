@@ -111,4 +111,12 @@ func TestCheckCommitCommand(t *testing.T) {
 			t.Errorf("Expected 'proceeding' message in stderr, but it was missing. Got:\n%s", stderr)
 		}
 	})
+
+	t.Run("when active profile email is overridden", func(t *testing.T) {
+		mockCfg.ActiveProfile = "work"
+		exitCode, stderr := runCheckCommitTest(t, mockCfg, "overridden@example.com", "\n")
+		if exitCode != 1 || !strings.Contains(stderr, "Commit aborted by user") {
+			t.Fatalf("expected active profile override to be checked, code=%d stderr=%q", exitCode, stderr)
+		}
+	})
 }

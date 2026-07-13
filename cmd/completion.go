@@ -4,7 +4,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -19,25 +18,26 @@ var completionCmd = &cobra.Command{
 	ValidArgs:             []string{"bash", "zsh", "fish", "powershell"},
 	//Args:                  cobra.ExactValidArgs(1),
 	Args: cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		switch args[0] {
 		case "bash":
 			if err := cmd.Root().GenBashCompletion(os.Stdout); err != nil {
-				log.Fatalf("Failed to generate bash completion: %v", err)
+				return fmt.Errorf("generate bash completion: %w", err)
 			}
 		case "zsh":
 			if err := cmd.Root().GenZshCompletion(os.Stdout); err != nil {
-				log.Fatalf("Failed to generate zsh completion: %v", err)
+				return fmt.Errorf("generate zsh completion: %w", err)
 			}
 		case "fish":
 			if err := cmd.Root().GenFishCompletion(os.Stdout, true); err != nil {
-				log.Fatalf("Failed to generate fish completion: %v", err)
+				return fmt.Errorf("generate fish completion: %w", err)
 			}
 		case "powershell":
 			if err := cmd.Root().GenPowerShellCompletion(os.Stdout); err != nil {
-				log.Fatalf("Failed to generate powershell completion: %v", err)
+				return fmt.Errorf("generate powershell completion: %w", err)
 			}
 		}
+		return nil
 	},
 }
 

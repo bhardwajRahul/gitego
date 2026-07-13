@@ -31,18 +31,16 @@ var listCmd = &cobra.Command{
 including their associated user name, email, and configured credentials (SSH, PAT).
 The globally active profile is marked with an asterisk (*).`,
 	Aliases: []string{"ls"}, // Users can run 'gitego ls' as a shortcut for 'gitego list'
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := config.Load()
 		if err != nil {
-			fmt.Printf("Error loading configuration: %v\n", err)
-
-			return
+			return fmt.Errorf("load configuration: %w", err)
 		}
 
 		if len(cfg.Profiles) == 0 {
 			fmt.Printf("No profiles found. Use '%s add <profile_name>' to create one.\n", binaryName)
 
-			return
+			return nil
 		}
 
 		profileNames := make([]string, 0, len(cfg.Profiles))
@@ -96,6 +94,7 @@ The globally active profile is marked with an asterisk (*).`,
 				log.Printf("Warning: Failed to write profile row: %v", err)
 			}
 		}
+		return nil
 	},
 }
 
