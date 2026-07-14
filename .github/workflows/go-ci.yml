@@ -74,3 +74,16 @@ jobs:
 
     - name: Vet
       run: go vet ./...
+
+  nix-build:
+    name: Nix build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v4
+
+    - name: Install Nix
+      uses: cachix/install-nix-action@v31
+
+    - name: Build with Nix
+      run: nix build --no-write-lock-file

@@ -6,6 +6,7 @@ on:
       - 'v*'
 
 permissions:
+  actions: write
   contents: write
 
 jobs:
@@ -152,3 +153,16 @@ jobs:
         files: |
           ${{ env.ASSET_NAME }}
           ${{ env.ASSET_NAME }}.sha256
+
+  publish-packages:
+    name: Publish package manifests
+    needs: build-and-upload
+    runs-on: ubuntu-latest
+    steps:
+    - name: Dispatch package workflows
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        for workflow in homebrew.yml scoop.yml winget.yml; do
+          gh workflow run "$workflow" --ref "$GITHUB_SHA" -f tag="${GITHUB_REF#refs/tags/}"
+        done

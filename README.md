@@ -52,6 +52,12 @@ scoop install git-ego
 winget install --id bgreenwell.GitEgo
 ```
 
+**Nix (Linux / macOS):**
+
+```bash
+nix profile install github:bgreenwell/git-ego
+```
+
 ### Go
 
 Or install from source with [Go](https://go.dev/dl/) 1.24 or newer:
