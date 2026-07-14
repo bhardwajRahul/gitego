@@ -18,6 +18,7 @@
             src = self;
             vendorHash = "sha256-95hogC0JlrnUJBvoV4Ac4F5XmOqsQh2AQ0rZGcC/4oY=";
             ldflags = [ "-s" "-w" "-X github.com/bgreenwell/git-ego/cmd.version=0.2.3" ];
+            nativeBuildInputs = [ pkgs.git ];
 
             meta = with pkgs.lib; {
               description = "Git identity manager with directory-based profile switching";
