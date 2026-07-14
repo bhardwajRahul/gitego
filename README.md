@@ -61,9 +61,10 @@ Ensure your Go bin directory (typically `~/go/bin`) is in `PATH` when using
 ### GitHub account-switch smoke test
 
 For a test profile and repository you control, run the included account-switch
-smoke test. It reads the test-account PAT from `GH_GIT_EGO`, verifies keychain
-retrieval and host scoping, writes a timestamped entry to a smoke-test
-changelog, pushes through the test profile, and restores your regular profile.
+smoke test. It uses the test-account PAT already stored in the keychain (or stores
+`GH_GIT_EGO` when supplied), verifies retrieval and host scoping, writes a
+timestamped entry to a smoke-test changelog, pushes through the test profile,
+and restores your regular profile.
 
 ```bash
 GIT_EGO_SMOKE_RETURN_PROFILE=personal \

@@ -7,10 +7,11 @@ usage() {
 Usage: scripts/gh-account-switch-smoke-test.sh --push
 
 Required environment variables:
-  GH_GIT_EGO                     PAT for the temporary GitHub test account
   GIT_EGO_SMOKE_RETURN_PROFILE   regular git-ego profile to restore afterwards
 
 Optional environment variables:
+  GH_GIT_EGO                     PAT for the test account; stores or replaces
+                                 the keychain value before testing
   GIT_EGO_BIN                    git-ego executable (default: git-ego)
   GIT_EGO_SMOKE_TEST_PROFILE     test profile (default: gh-smoke)
   GIT_EGO_SMOKE_REPO             test repository HTTPS URL
@@ -20,10 +21,11 @@ Optional environment variables:
   GIT_EGO_SMOKE_EMAIL            expected Git email
                                  (default: greenwell.brandon+github@gmail.com)
 
-The script temporarily activates the test profile by directory rule, appends a
-timestamped entry to GIT-EGO-SMOKE-CHANGELOG.md, and pushes it with the test
-account's PAT. It always removes the temporary rule and restores the regular
-profile before exiting.
+The script uses the PAT already stored for the test profile, or stores
+GH_GIT_EGO first when it is set. It temporarily activates the test profile by
+directory rule, appends a timestamped entry to GIT-EGO-SMOKE-CHANGELOG.md, and
+pushes it with the test account's PAT. It always removes the temporary rule
+and restores the regular profile before exiting.
 EOF
 }
 
@@ -37,7 +39,6 @@ if [ "${1:-}" != "--push" ] || [ "$#" -ne 1 ]; then
   exit 2
 fi
 
-: "${GH_GIT_EGO:?set GH_GIT_EGO to the GitHub PAT before running this script}"
 : "${GIT_EGO_SMOKE_RETURN_PROFILE:?set GIT_EGO_SMOKE_RETURN_PROFILE to the profile to restore}"
 
 git_ego="${GIT_EGO_BIN:-git-ego}"
@@ -61,7 +62,9 @@ cleanup() {
 }
 trap cleanup EXIT
 
-printf '%s' "$GH_GIT_EGO" | "$git_ego" pat set "$test_profile"
+if [ -n "${GH_GIT_EGO:-}" ]; then
+  printf '%s' "$GH_GIT_EGO" | "$git_ego" pat set "$test_profile"
+fi
 "$git_ego" auto "$test_dir" "$test_profile"
 
 cd "$test_dir"
