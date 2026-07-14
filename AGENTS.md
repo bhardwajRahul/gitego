@@ -23,9 +23,8 @@ practices:
 - **`config/`**: Loading, saving, and managing user profiles and application
   settings, including secure keychain interaction. `config.go` defines the
   data structures for profiles and auto-activation rules, serialized with
-  `gopkg.in/yaml.v3`. `keyring.go` (plus platform-specific
-  `keyring_darwin.go`/`keyring_other.go`) manages secure credential storage
-  via `github.com/zalando/go-keyring`.
+  `gopkg.in/yaml.v3`. `keyring.go` manages secure credential storage via
+  `github.com/zalando/go-keyring`.
 - **`utils/`**: Helper functions that interact with the git CLI and file
   system. `git.go` executes git commands and parses their output — the core
   logic for setting git configuration values.

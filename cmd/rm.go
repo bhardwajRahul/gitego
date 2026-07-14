@@ -19,13 +19,12 @@ var (
 
 // rmRunner holds the dependencies for the rm command for mocking.
 type rmRunner struct {
-	load                func() (*config.Config, error)
-	save                func(*config.Config) error
-	removeIncludeIf     func(string) error
-	removeProfileCfg    func(string) error
-	deleteToken         func(string) error
-	deleteGitCredential func(string) error
-	unsetGlobalGit      func(string) error
+	load             func() (*config.Config, error)
+	save             func(*config.Config) error
+	removeIncludeIf  func(string) error
+	removeProfileCfg func(string) error
+	deleteToken      func(string) error
+	unsetGlobalGit   func(string) error
 }
 
 // run is the core logic for the rm command.
@@ -40,7 +39,7 @@ func (r *rmRunner) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("load configuration: %w", err)
 	}
 
-	profile, exists := cfg.Profiles[profileName]
+	_, exists := cfg.Profiles[profileName]
 	if !exists {
 		return fmt.Errorf("profile %q not found", profileName)
 	}
@@ -101,11 +100,6 @@ func (r *rmRunner) run(cmd *cobra.Command, args []string) error {
 				}
 			}
 		}
-		if r.deleteGitCredential != nil {
-			if err := r.deleteGitCredential(profile.Username); err != nil {
-				return fmt.Errorf("remove active Git credential: %w", err)
-			}
-		}
 	}
 
 	fmt.Printf("✓ Profile '%s' and all associated rules removed successfully.\n", profileName)
@@ -123,12 +117,11 @@ var rmCmd = &cobra.Command{
 	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		runner := &rmRunner{
-			load:                config.Load,
-			save:                func(c *config.Config) error { return c.Save() },
-			removeIncludeIf:     config.RemoveIncludeIf,
-			deleteToken:         config.DeleteToken,
-			deleteGitCredential: config.DeleteGitCredential,
-			unsetGlobalGit:      utils.UnsetGlobalGitConfig,
+			load:            config.Load,
+			save:            func(c *config.Config) error { return c.Save() },
+			removeIncludeIf: config.RemoveIncludeIf,
+			deleteToken:     config.DeleteToken,
+			unsetGlobalGit:  utils.UnsetGlobalGitConfig,
 			removeProfileCfg: func(profileName string) error {
 				path, err := config.ProfileGitconfigPath(profileName)
 				if err != nil {

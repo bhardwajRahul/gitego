@@ -84,7 +84,6 @@ func TestRmCommandClearsActiveProfile(t *testing.T) {
 	}
 
 	var unsetKeys []string
-	var deletedCredential string
 	runner := &rmRunner{
 		load:             func() (*config.Config, error) { return mockCfg, nil },
 		save:             func(*config.Config) error { return nil },
@@ -93,10 +92,6 @@ func TestRmCommandClearsActiveProfile(t *testing.T) {
 		deleteToken:      func(string) error { return nil },
 		unsetGlobalGit: func(key string) error {
 			unsetKeys = append(unsetKeys, key)
-			return nil
-		},
-		deleteGitCredential: func(username string) error {
-			deletedCredential = username
 			return nil
 		},
 	}
@@ -109,9 +104,6 @@ func TestRmCommandClearsActiveProfile(t *testing.T) {
 
 	if mockCfg.ActiveProfile != "" {
 		t.Fatalf("active profile = %q, want empty", mockCfg.ActiveProfile)
-	}
-	if deletedCredential != "work-user" {
-		t.Fatalf("deleted credential for %q, want work-user", deletedCredential)
 	}
 	wantKeys := map[string]bool{"user.name": true, "user.email": true, "user.signingkey": true, "gpg.format": true, "core.sshCommand": true}
 	for _, key := range unsetKeys {

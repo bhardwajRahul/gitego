@@ -200,3 +200,89 @@ func TestInstallHook(t *testing.T) {
 		}
 	})
 }
+
+func TestInstallHookUsesRelativeCustomHooksPath(t *testing.T) {
+	originalWd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, cleanup := setupTestRepoAndChangeDir(t, originalWd)
+	defer cleanup()
+
+	if output, err := exec.Command("git", "config", "core.hooksPath", ".custom-hooks").CombinedOutput(); err != nil {
+		t.Fatalf("configure custom hooks path: %v: %s", err, output)
+	}
+	if err := installHookCmd.RunE(installHookCmd, []string{}); err != nil {
+		t.Fatal(err)
+	}
+
+	hooksDir, err := gitHooksPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasSuffix(filepath.ToSlash(hooksDir), "/.custom-hooks") {
+		t.Fatalf("hooks directory = %q, want custom hooks path", hooksDir)
+	}
+	if _, err := os.Stat(filepath.Join(hooksDir, "pre-commit")); err != nil {
+		t.Fatalf("custom pre-commit hook not installed: %v", err)
+	}
+}
+
+func TestInstallHookUsesLinkedWorktreeHooksPath(t *testing.T) {
+	originalWd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	repoRoot, _, cleanup := setupTestRepoAndChangeDir(t, originalWd)
+	defer cleanup()
+
+	if err := os.WriteFile(filepath.Join(repoRoot, "README"), []byte("test\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{
+		{"add", "README"},
+		{"-c", "user.name=Test User", "-c", "user.email=test@example.com", "commit", "-m", "initial"},
+	} {
+		if output, err := exec.Command("git", args...).CombinedOutput(); err != nil {
+			t.Fatalf("git %s: %v: %s", strings.Join(args, " "), err, output)
+		}
+	}
+
+	worktree := filepath.Join(t.TempDir(), "linked-worktree")
+	if output, err := exec.Command("git", "worktree", "add", worktree).CombinedOutput(); err != nil {
+		t.Fatalf("create linked worktree: %v: %s", err, output)
+	}
+	defer func() {
+		if output, err := exec.Command("git", "-C", repoRoot, "worktree", "remove", "--force", worktree).CombinedOutput(); err != nil {
+			t.Logf("remove linked worktree: %v: %s", err, output)
+		}
+	}()
+	if err := os.Chdir(worktree); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := installHookCmd.RunE(installHookCmd, []string{}); err != nil {
+		t.Fatal(err)
+	}
+	hooksDir, err := gitHooksPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	output, err := exec.Command("git", "rev-parse", "--git-path", "hooks").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantHooksDir := strings.TrimSpace(string(output))
+	if !filepath.IsAbs(wantHooksDir) {
+		wantHooksDir, err = filepath.Abs(wantHooksDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if hooksDir != wantHooksDir {
+		t.Fatalf("hooks directory = %q, want Git-reported path %q", hooksDir, wantHooksDir)
+	}
+	if _, err := os.Stat(filepath.Join(hooksDir, "pre-commit")); err != nil {
+		t.Fatalf("linked-worktree pre-commit hook not installed: %v", err)
+	}
+}

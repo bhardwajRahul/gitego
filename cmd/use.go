@@ -3,7 +3,6 @@ package cmd
 
 import (
 	"fmt"
-	"runtime"
 
 	"github.com/bgreenwell/git-ego/config"
 	"github.com/bgreenwell/git-ego/utils"
@@ -14,15 +13,12 @@ var useLocalFlag bool
 
 // useRunner holds the dependencies for the use command for mocking.
 type useRunner struct {
-	load             func() (*config.Config, error)
-	save             func(*config.Config) error
-	setGlobalGit     func(string, string) error
-	unsetGlobalGit   func(string) error
-	setGitCredential func(string, string) error
-	getOS            func() string
-	getToken         func(string) (string, error)
-	setLocalGit      func(string, string) error
-	unsetLocalGit    func(string) error
+	load           func() (*config.Config, error)
+	save           func(*config.Config) error
+	setGlobalGit   func(string, string) error
+	unsetGlobalGit func(string) error
+	setLocalGit    func(string, string) error
+	unsetLocalGit  func(string) error
 }
 
 // run is the core logic for the use command.
@@ -55,15 +51,6 @@ func (u *useRunner) run(cmd *cobra.Command, args []string) error {
 		cfg.ActiveProfile = profileName
 		if err := u.save(cfg); err != nil {
 			return fmt.Errorf("save active profile: %w", err)
-		}
-	}
-
-	// Action 3: If on macOS, also preemptively set the credential
-	// in the keychain to prevent the osxkeychain helper from prompting.
-	if !useLocalFlag && u.getOS() == "darwin" {
-		token, err := u.getToken(profileName)
-		if err == nil && token != "" && profile.Username != "" {
-			_ = u.setGitCredential(profile.Username, token)
 		}
 	}
 
@@ -121,19 +108,16 @@ var useCmd = &cobra.Command{
 	Long: `Sets a profile as the active default. This profile will be used
 for any repository that does not have a specific auto-switch rule.
 This command updates your global .gitconfig, sets the active profile for the
-credential helper, and preemptively updates the macOS Keychain.`,
+credential helper.`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		runner := &useRunner{
-			load:             config.Load,
-			save:             func(c *config.Config) error { return c.Save() },
-			setGlobalGit:     utils.SetGlobalGitConfig,
-			unsetGlobalGit:   utils.UnsetGlobalGitConfig,
-			setGitCredential: config.SetGitCredential,
-			getOS:            func() string { return runtime.GOOS },
-			getToken:         config.GetToken,
-			setLocalGit:      utils.SetLocalGitConfig,
-			unsetLocalGit:    utils.UnsetLocalGitConfig,
+			load:           config.Load,
+			save:           func(c *config.Config) error { return c.Save() },
+			setGlobalGit:   utils.SetGlobalGitConfig,
+			unsetGlobalGit: utils.UnsetGlobalGitConfig,
+			setLocalGit:    utils.SetLocalGitConfig,
+			unsetLocalGit:  utils.UnsetLocalGitConfig,
 		}
 		return runner.run(cmd, args)
 	},
