@@ -58,6 +58,18 @@ go install github.com/bgreenwell/git-ego@latest
 Ensure your Go bin directory (typically `~/go/bin`) is in `PATH` when using
 `go install`.
 
+### GitHub account-switch smoke test
+
+For a test profile and repository you control, run the included account-switch
+smoke test. It reads the test-account PAT from `GH_GIT_EGO`, verifies keychain
+retrieval and host scoping, writes a timestamped entry to a smoke-test
+changelog, pushes through the test profile, and restores your regular profile.
+
+```bash
+GIT_EGO_SMOKE_RETURN_PROFILE=personal \
+  scripts/gh-account-switch-smoke-test.sh --push
+```
+
 ## One-time setup: Configure Git
 
 Configure Git to use `git-ego` as its credential helper for supported HTTPS hosts.
