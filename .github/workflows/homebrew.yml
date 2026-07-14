@@ -23,7 +23,8 @@ jobs:
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
       - name: Wait for release asset
-        env: { GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} }
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           for i in $(seq 1 40); do
             gh release view "${{ steps.release.outputs.tag }}" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | grep -qx "git-ego-${{ steps.release.outputs.tag }}-macos-x86_64.tar.gz" && exit 0
@@ -36,7 +37,8 @@ jobs:
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           path: tap
       - name: Generate and publish formula
-        env: { GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} }
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tag="${{ steps.release.outputs.tag }}"; version="${{ steps.release.outputs.version }}"
           asset="git-ego-${tag}-macos-x86_64.tar.gz"

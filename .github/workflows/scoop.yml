@@ -28,7 +28,8 @@ jobs:
           token: ${{ secrets.SCOOP_BUCKET_TOKEN }}
           path: scoop-bucket
       - name: Generate and publish manifest
-        env: { GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} }
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tag="${{ steps.release.outputs.tag }}"; version="${{ steps.release.outputs.version }}"
           asset="git-ego-${tag}-windows-x86_64.zip"
