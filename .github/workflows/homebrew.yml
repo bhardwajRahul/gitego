@@ -1,0 +1,65 @@
+name: Publish Homebrew Formula
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  publish-homebrew:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determine release tag
+        id: release
+        run: |
+          tag="${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.release.tag_name }}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+      - name: Wait for release asset
+        env: { GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} }
+        run: |
+          for i in $(seq 1 40); do
+            gh release view "${{ steps.release.outputs.tag }}" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | grep -qx "git-ego-${{ steps.release.outputs.tag }}-macos-x86_64.tar.gz" && exit 0
+            sleep 45
+          done
+          exit 1
+      - uses: actions/checkout@v4
+        with:
+          repository: bgreenwell/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: tap
+      - name: Generate and publish formula
+        env: { GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} }
+        run: |
+          tag="${{ steps.release.outputs.tag }}"; version="${{ steps.release.outputs.version }}"
+          asset="git-ego-${tag}-macos-x86_64.tar.gz"
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern "$asset"
+          sha=$(sha256sum "$asset" | cut -d ' ' -f1)
+          mkdir -p tap/Formula
+          cat > tap/Formula/git-ego.rb <<EOF
+          class GitEgo < Formula
+            desc "Git identity manager with directory-based profile switching"
+            homepage "https://github.com/bgreenwell/git-ego"
+            url "https://github.com/bgreenwell/git-ego/releases/download/$tag/$asset"
+            sha256 "$sha"
+            license "MIT"
+            def install
+              bin.install "git-ego"
+            end
+            test do
+              assert_match "$version", shell_output("#{bin}/git-ego --version")
+            end
+          end
+          EOF
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/git-ego.rb
+          git diff --staged --quiet || (git commit -m "git-ego $version" && git push)

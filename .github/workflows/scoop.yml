@@ -1,0 +1,43 @@
+name: Publish Scoop Manifest
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  publish-scoop:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determine release tag
+        id: release
+        run: |
+          tag="${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.release.tag_name }}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with:
+          repository: bgreenwell/scoop-bucket
+          token: ${{ secrets.SCOOP_BUCKET_TOKEN }}
+          path: scoop-bucket
+      - name: Generate and publish manifest
+        env: { GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} }
+        run: |
+          tag="${{ steps.release.outputs.tag }}"; version="${{ steps.release.outputs.version }}"
+          asset="git-ego-${tag}-windows-x86_64.zip"
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern "$asset"
+          sha=$(sha256sum "$asset" | cut -d ' ' -f1)
+          mkdir -p scoop-bucket/bucket
+          jq -n --arg version "$version" --arg url "https://github.com/bgreenwell/git-ego/releases/download/$tag/$asset" --arg hash "$sha" '{version:$version,description:"Git identity manager with directory-based profile switching",homepage:"https://github.com/bgreenwell/git-ego",license:"MIT",architecture:{"64bit":{url:$url,hash:$hash}},bin:"git-ego.exe",checkver:{github:"https://github.com/bgreenwell/git-ego"},autoupdate:{architecture:{"64bit":{url:"https://github.com/bgreenwell/git-ego/releases/download/v$version/git-ego-v$version-windows-x86_64.zip"}}}}' > scoop-bucket/bucket/git-ego.json
+          cd scoop-bucket
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bucket/git-ego.json
+          git diff --staged --quiet || (git commit -m "git-ego $version" && git push)
