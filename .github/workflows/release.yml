@@ -163,6 +163,7 @@ jobs:
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
+        tag="${GITHUB_REF#refs/tags/}"
         for workflow in homebrew.yml scoop.yml winget.yml; do
-          gh workflow run "$workflow" --ref "$GITHUB_SHA" -f tag="${GITHUB_REF#refs/tags/}"
+          gh workflow run "$workflow" --ref "$tag" -f tag="$tag"
         done

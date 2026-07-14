@@ -12,7 +12,7 @@ import (
 )
 
 // The version of the application.
-var version = "0.2.3"
+var version = "0.2.4"
 
 // binaryName is the name of the running executable, supporting invocation as
 // both "gitego" and "git-ego" (git subcommand form).

@@ -14,10 +14,10 @@
           pkgs = import nixpkgs { inherit system; };
           git-ego = pkgs.buildGoModule {
             pname = "git-ego";
-            version = "0.2.3";
+            version = "0.2.4";
             src = self;
             vendorHash = "sha256-95hogC0JlrnUJBvoV4Ac4F5XmOqsQh2AQ0rZGcC/4oY=";
-            ldflags = [ "-s" "-w" "-X github.com/bgreenwell/git-ego/cmd.version=0.2.3" ];
+            ldflags = [ "-s" "-w" "-X github.com/bgreenwell/git-ego/cmd.version=0.2.4" ];
             nativeBuildInputs = [ pkgs.git ];
 
             meta = with pkgs.lib; {
