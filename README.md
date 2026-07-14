@@ -1,4 +1,6 @@
-# git-ego <img src="assets/logo.svg" align="right" width="120" />
+<p align="center">
+  <img src="assets/logo.svg" alt="git-ego" width="620" />
+</p>
 
 [![CI](https://img.shields.io/github/actions/workflow/status/bgreenwell/git-ego/go-ci.yml?style=for-the-badge)](https://github.com/bgreenwell/git-ego/actions/workflows/go-ci.yml)
 [![Go Reference](https://img.shields.io/badge/go.dev-reference-%2300ADD8?style=for-the-badge&logo=go&logoColor=white)](https://pkg.go.dev/github.com/bgreenwell/git-ego)
