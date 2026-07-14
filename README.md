@@ -1,7 +1,6 @@
 ![](assets/logo.svg)
 
 [![Build Status](https://github.com/bgreenwell/git-ego/actions/workflows/go-ci.yml/badge.svg)](https://github.com/bgreenwell/git-ego/actions/workflows/go-ci.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/bgreenwell/git-ego)](https://goreportcard.com/report/github.com/bgreenwell/git-ego)
 [![Go Reference](https://pkg.go.dev/badge/github.com/bgreenwell/git-ego.svg)](https://pkg.go.dev/github.com/bgreenwell/git-ego)
 ![Go Version](https://img.shields.io/badge/go%20version-%3E=1.24-61CFDD.svg)
 [![Latest Release](https://img.shields.io/github/v/release/bgreenwell/git-ego)](https://github.com/bgreenwell/git-ego/releases/latest)
