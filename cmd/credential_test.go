@@ -92,3 +92,57 @@ func TestCredentialCommandScopesHostAndOperation(t *testing.T) {
 		})
 	}
 }
+
+func TestCredentialCommandUsesConfiguredHosts(t *testing.T) {
+	runner := &credentialRunner{
+		loadConfig: func() (*config.Config, error) {
+			return &config.Config{Profiles: map[string]*config.Profile{
+				"work": {Username: "work-user", Hosts: []string{"gitlab.example.com", "github.example.com:8443"}},
+			}, ActiveProfile: "work"}, nil
+		},
+		getToken: func(string) (string, error) { return "secret", nil },
+	}
+
+	for name, tc := range map[string]struct {
+		host string
+		want bool
+	}{
+		"configured host":        {host: "gitlab.example.com", want: true},
+		"configured host case":   {host: "GITLAB.EXAMPLE.COM", want: true},
+		"configured host port":   {host: "github.example.com:8443", want: true},
+		"default GitHub blocked": {host: "github.com", want: false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			var output bytes.Buffer
+			runner.stdin = strings.NewReader("protocol=https\nhost=" + tc.host + "\n\n")
+			runner.stdout = &output
+			runner.run(&cobra.Command{}, []string{"get"})
+
+			if got := output.Len() > 0; got != tc.want {
+				t.Fatalf("credential output present = %t, want %t: %q", got, tc.want, output.String())
+			}
+		})
+	}
+}
+
+func TestCredentialCommandRejectsNonHTTPSRequests(t *testing.T) {
+	called := false
+	runner := &credentialRunner{
+		loadConfig: func() (*config.Config, error) {
+			return &config.Config{Profiles: map[string]*config.Profile{
+				"work": {Username: "work-user"},
+			}, ActiveProfile: "work"}, nil
+		},
+		getToken: func(string) (string, error) {
+			called = true
+			return "secret", nil
+		},
+		stdin:  strings.NewReader("protocol=http\nhost=github.com\n\n"),
+		stdout: &bytes.Buffer{},
+	}
+
+	runner.run(&cobra.Command{}, []string{"get"})
+	if called {
+		t.Fatal("credential helper looked up a token for a non-HTTPS request")
+	}
+}

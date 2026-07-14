@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/bgreenwell/git-ego/config"
+	"github.com/spf13/cobra"
 )
 
 // setupEditTestConfig creates a mock config for edit command testing.
@@ -19,6 +20,47 @@ func setupEditTestConfig() *config.Config {
 				Username: "original_user",
 			},
 		},
+	}
+}
+
+func TestEditCommandSynchronizesActiveProfile(t *testing.T) {
+	mockCfg := setupEditTestConfig()
+	mockCfg.ActiveProfile = "work"
+
+	command := &cobra.Command{}
+	command.Flags().String("email", "", "")
+	if err := command.Flags().Set("email", "updated@example.com"); err != nil {
+		t.Fatal(err)
+	}
+
+	previousEmail := editEmail
+	editEmail = "updated@example.com"
+	t.Cleanup(func() { editEmail = previousEmail })
+
+	var ensuredEmail string
+	global := make(map[string]string)
+	runner := &editor{
+		load: func() (*config.Config, error) { return mockCfg, nil },
+		save: func(*config.Config) error { return nil },
+		ensureProfileGitconfig: func(_ string, profile *config.Profile) error {
+			ensuredEmail = profile.Email
+			return nil
+		},
+		setGlobalGit: func(key, value string) error {
+			global[key] = value
+			return nil
+		},
+		unsetGlobalGit: func(string) error { return nil },
+	}
+
+	if err := runner.run(command, []string{"work"}); err != nil {
+		t.Fatal(err)
+	}
+	if ensuredEmail != "updated@example.com" {
+		t.Fatalf("generated profile gitconfig used %q, want updated email", ensuredEmail)
+	}
+	if global["user.email"] != "updated@example.com" {
+		t.Fatalf("active global profile used %q, want updated email", global["user.email"])
 	}
 }
 

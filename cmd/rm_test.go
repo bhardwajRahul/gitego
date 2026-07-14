@@ -75,6 +75,53 @@ func TestRmCommand(t *testing.T) {
 	validateRmCommandEffects(t, saved, removedIncludeIf, removedProfileCfg, deletedToken)
 }
 
+func TestRmCommandClearsActiveProfile(t *testing.T) {
+	mockCfg := &config.Config{
+		Profiles: map[string]*config.Profile{
+			"work": {Name: "Work User", Email: "work@example.com", Username: "work-user"},
+		},
+		ActiveProfile: "work",
+	}
+
+	var unsetKeys []string
+	var deletedCredential string
+	runner := &rmRunner{
+		load:             func() (*config.Config, error) { return mockCfg, nil },
+		save:             func(*config.Config) error { return nil },
+		removeIncludeIf:  func(string) error { return nil },
+		removeProfileCfg: func(string) error { return nil },
+		deleteToken:      func(string) error { return nil },
+		unsetGlobalGit: func(key string) error {
+			unsetKeys = append(unsetKeys, key)
+			return nil
+		},
+		deleteGitCredential: func(username string) error {
+			deletedCredential = username
+			return nil
+		},
+	}
+
+	forceFlag = true
+	t.Cleanup(func() { forceFlag = false })
+	if err := runner.run(rmCmd, []string{"work"}); err != nil {
+		t.Fatal(err)
+	}
+
+	if mockCfg.ActiveProfile != "" {
+		t.Fatalf("active profile = %q, want empty", mockCfg.ActiveProfile)
+	}
+	if deletedCredential != "work-user" {
+		t.Fatalf("deleted credential for %q, want work-user", deletedCredential)
+	}
+	wantKeys := map[string]bool{"user.name": true, "user.email": true, "user.signingkey": true, "gpg.format": true, "core.sshCommand": true}
+	for _, key := range unsetKeys {
+		delete(wantKeys, key)
+	}
+	if len(wantKeys) != 0 {
+		t.Fatalf("global Git keys were not cleared: %v", wantKeys)
+	}
+}
+
 // validateProfileRemoval validates that the profile was properly removed.
 func validateProfileRemoval(t *testing.T, mockCfg *config.Config) {
 	t.Helper()

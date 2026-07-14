@@ -15,6 +15,11 @@
 
 `git-ego` manages separate Git identities for work, personal projects, and clients. Profiles can set `user.name`, `user.email`, SSH keys, signing keys, and HTTPS credentials.
 
+Use either `git-ego <command>` or `git ego <command>`. When `git-ego` is on
+`PATH`, Git resolves `git ego` to the same executable. This README uses
+`git ego` for user-facing examples; Git's credential-helper configuration must
+continue to invoke `git-ego credential` directly.
+
 ---
 
 ## Key features
@@ -60,11 +65,11 @@ Ensure your Go bin directory (typically `~/go/bin`) is in `PATH` when using
 
 ### GitHub account-switch smoke test
 
-For a test profile and repository you control, run the included account-switch
-smoke test. It uses the test-account PAT already stored in the keychain (or stores
-`GH_GIT_EGO` when supplied), verifies retrieval and host scoping, writes a
-timestamped entry to a smoke-test changelog, pushes through the test profile,
-and restores your regular profile.
+From a source checkout, run the included account-switch smoke test against a
+repository you control. It uses the test-account PAT already stored in the
+keychain (or stores `GH_GIT_EGO` when supplied), verifies retrieval and host
+scoping, writes a timestamped entry to a smoke-test changelog, pushes through
+the test profile, and restores your regular profile.
 
 ```bash
 GIT_EGO_SMOKE_RETURN_PROFILE=personal \
@@ -73,14 +78,13 @@ GIT_EGO_SMOKE_RETURN_PROFILE=personal \
 
 ## One-time setup: Configure Git
 
-Configure Git to use `git-ego` as its credential helper for supported HTTPS hosts.
+Configure GitHub to use `git-ego` as its credential helper. This leaves other
+hosts and their existing helpers untouched.
 
 ```bash
-# Clear any old, conflicting helpers
-git config --global credential.helper ""
-
-# Set git-ego as the one and only helper, using the required '\!' prefix
-git config --global --add credential.helper "!git-ego credential"
+# Use git-ego only for github.com. The empty value resets helpers for this URL.
+git config --global credential.https://github.com.helper ""
+git config --global --add credential.https://github.com.helper "!git-ego credential"
 ```
 
 ## Example usage
@@ -93,18 +97,18 @@ First, define your different identities.
 
 ```bash
 # A simple personal profile
-git-ego add personal --name "Brandon" --email "brandon.personal@email.com" --username "bgreenwell-personal"
+git ego add personal --name "Brandon" --email "brandon.personal@email.com" --username "bgreenwell-personal"
 
 # A work profile that uses a specific SSH key
-git-ego add work-ssh --name "Brandon Greenwell" --email "brandon.work@company.com" --username "bgreenwell-work" --ssh-key ~/.ssh/id_work
+git ego add work-ssh --name "Brandon Greenwell" --email "brandon.work@company.com" --username "bgreenwell-work" --ssh-key ~/.ssh/id_work
 
 # A client profile that uses a PAT for HTTPS. Store the token separately so
 # it never enters shell history or the process list.
-git-ego add client-abc --name "Brandon G." --email "brandon@client-abc.com" --username "bgreenwell-client"
-printf '%s' "$CLIENT_GITHUB_TOKEN" | git-ego pat set client-abc
+git ego add client-abc --name "Brandon G." --email "brandon@client-abc.com" --username "bgreenwell-client"
+printf '%s' "$CLIENT_GITHUB_TOKEN" | git ego pat set client-abc
 
 # A non-GitHub profile must explicitly name its HTTPS host.
-git-ego add gitlab-work --name "Brandon" --email "brandon@company.com" --username "bgreenwell" --host gitlab.company.com
+git ego add gitlab-work --name "Brandon" --email "brandon@company.com" --username "bgreenwell" --host gitlab.company.com
 ```
 
 #### 2\. List your configured profiles
@@ -112,7 +116,7 @@ git-ego add gitlab-work --name "Brandon" --email "brandon@company.com" --usernam
 Use the `list` (or `ls`) command to see all the profiles you’ve saved.
 
 ```bash
-git-ego list
+git ego list
 ```
 
 ```
@@ -128,7 +132,7 @@ ACTIVE  PROFILE     NAME                 EMAIL                       ATTRIBUTES
 The `use` command sets your default global identity for any repositories that don’t have a specific rule. This will also update your global `.gitconfig`.
 
 ```bash
-git-ego use personal
+git ego use personal
 ```
 
 ```
@@ -150,12 +154,12 @@ ACTIVE  PROFILE     NAME                 EMAIL                       ATTRIBUTES
 Now, tell `git-ego` which profiles to use for which project directories.
 
 ```bash
-git-ego auto ~/dev/work/ work-ssh
-git-ego auto ~/dev/personal/ personal
+git ego auto ~/dev/work/ work-ssh
+git ego auto ~/dev/personal/ personal
 
 # Review or remove one rule later.
-git-ego auto list
-git-ego auto rm ~/dev/personal/
+git ego auto list
+git ego auto rm ~/dev/personal/
 ```
 
 When you `cd` into `~/dev/work/any-repo`, your `user.name`, `user.email`, and `sshCommand` will be automatically switched to the `work-ssh` profile.
@@ -168,22 +172,26 @@ For a repository-specific safety expectation, create an untracked `.gitego` file
 
 | Command | Alias | Description |
 |---|---|---|
-| `git-ego add <name>` | | Adds a new user profile. |
-| `git-ego rm <name>` | `remove` | Removes a saved user profile, asking for confirmation. |
-| `git-ego list` | `ls` | Lists all saved user profiles and their attributes. |
-| `git-ego list --check-pats` | | Opt in to keyring checks and PAT markers. |
-| `git-ego use <name>` | | Sets a profile as the active global default. |
-| `git-ego auto <path> <name>` | | Sets a profile to be used automatically for a given directory path. |
-| `git-ego status` | | Displays the current effective Git user and the source of the configuration. |
-| `git-ego edit <name>` | | Edits an existing user profile's attributes. |
-| `git-ego pat set <name>` | | Stores a PAT read from standard input. |
-| `git-ego install-hook` | | Installs a pre-commit hook in the current repo to prevent misattributed commits. |
-| `git-ego completion <shell>`| | Generates shell completion scripts. |
-| `git-ego doctor` | | Checks auto-switch rules for Git/YAML drift. |
-| `git-ego doctor --repair` | | Repairs missing generated includes and auto-rules. |
-| `git-ego use <name> --local` | | Applies an identity only in the current repository. |
-| `git-ego profiles export/import <file>` | | Exports or imports profile configuration without PATs. |
-| `git-ego --version` | `-v` | Prints the application version. |
+| `git ego add <name>` | | Adds a new user profile. |
+| `git ego rm <name>` | `remove` | Removes a saved user profile, asking for confirmation. |
+| `git ego list` | `ls` | Lists all saved user profiles and their attributes. |
+| `git ego list --check-pats` | | Opts in to keyring checks and PAT markers. |
+| `git ego use <name>` | | Sets a profile as the active global default. |
+| `git ego use <name> --local` | | Applies an identity only in the current repository. |
+| `git ego auto <path> <name>` | | Sets a profile to be used automatically for a directory. |
+| `git ego auto list` | | Lists configured auto-switch rules. |
+| `git ego auto rm <path>` | | Removes one auto-switch rule. |
+| `git ego status` | | Displays the current effective Git user and its source. |
+| `git ego edit <name>` | | Edits an existing user profile's attributes. |
+| `git ego pat set <name>` | | Stores a PAT read from standard input. |
+| `git ego pat delete <name>` | | Deletes a PAT from the secure keyring. |
+| `git ego install-hook` | | Installs a pre-commit hook in the current repo. |
+| `git ego completion <shell>` | | Generates shell completion scripts. |
+| `git ego doctor` | | Checks auto-switch rules for Git/YAML drift. |
+| `git ego doctor --repair` | | Repairs missing generated includes and auto-rules. |
+| `git ego profiles export <file>` | | Exports profiles and auto-rules without PATs. |
+| `git ego profiles import <file>` | | Imports profiles and auto-rules without PATs. |
+| `git ego --version` | `-v` | Prints the application version. |
 
 ## How it works
 
