@@ -15,16 +15,16 @@ jobs:
     # This job will run on the latest version of Ubuntu.
     runs-on: ubuntu-latest
     steps:
-    # Step 1: Set up the Go environment on the runner.
+    # Step 1: Check out code before setup-go restores the module cache.
+    - name: Check out code
+      uses: actions/checkout@v4
+
+    # Step 2: Set up the Go environment on the runner.
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
         go-version: '1.24'
         cache: true # Enable Go module caching to speed up future runs.
-
-    # Step 2: Check out your repository's code so the workflow can access it.
-    - name: Check out code
-      uses: actions/checkout@v4
 
     # Step 3: Check if all Go files are formatted.
     - name: Check formatting
@@ -52,16 +52,16 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-    # Step 1: Set up the Go environment on the runner.
+    # Step 1: Check out code before setup-go restores the module cache.
+    - name: Check out code
+      uses: actions/checkout@v4
+
+    # Step 2: Set up the Go environment on the runner.
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
         go-version: '1.24'
         cache: true # Enable Go module caching.
-
-    # Step 2: Check out your repository's code so the workflow can access it.
-    - name: Check out code
-      uses: actions/checkout@v4
 
     # Step 3: Build the application to ensure it compiles on each OS.
     - name: Build application
