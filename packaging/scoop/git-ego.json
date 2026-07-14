@@ -3,7 +3,15 @@
   "description": "Context-aware Git identity manager",
   "homepage": "https://github.com/bgreenwell/git-ego",
   "license": "MIT",
-  "url": "https://github.com/bgreenwell/git-ego/releases/download/v0.2.1/git-ego-0.2.1-windows-x86_64.zip",
-  "hash": "REPLACE_WITH_RELEASE_SHA256",
+  "architecture": {
+    "64bit": {
+      "url": "https://github.com/bgreenwell/git-ego/releases/download/v0.2.1/git-ego-v0.2.1-windows-x86_64.zip",
+      "hash": "ad606a9cf27ed9440108fac7b6c63313473d50e7dff26ec18cf8971ae1f42dd0"
+    },
+    "arm64": {
+      "url": "https://github.com/bgreenwell/git-ego/releases/download/v0.2.1/git-ego-v0.2.1-windows-arm64.zip",
+      "hash": "c6fa24a0214f6008fd3b63178d8057f9b6585483a0f907937b902088197a1296"
+    }
+  },
   "bin": "git-ego.exe"
 }

@@ -1,13 +1,12 @@
 class GitEgo < Formula
   desc "Context-aware Git identity manager"
   homepage "https://github.com/bgreenwell/git-ego"
-  url "https://github.com/bgreenwell/git-ego/archive/refs/tags/v0.2.1.tar.gz"
-  sha256 "REPLACE_WITH_RELEASE_SHA256"
+  url "https://github.com/bgreenwell/git-ego/releases/download/v0.2.1/git-ego-v0.2.1-macos-x86_64.tar.gz"
+  sha256 "7104303773640bbfd4abd55ab2f84d06563da840ea3ceb43fd3624e495bac7e4"
   license "MIT"
 
-  depends_on "go" => :build
   def install
-    system "go", "build", *std_go_args(ldflags: "-s -w -X github.com/bgreenwell/git-ego/cmd.version=0.2.1"), "."
+    bin.install "git-ego"
   end
   test do
     assert_match "0.2.1", shell_output("#{bin}/git-ego --version")

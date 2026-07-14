@@ -6,21 +6,18 @@
 [![Latest Release](https://img.shields.io/github/v/release/bgreenwell/git-ego)](https://github.com/bgreenwell/git-ego/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Your Git identity manager and automatic profile switcher.**
+Git identity manager with directory-based profile switching.
 
-`git-ego` is a command-line tool designed to completely eliminate the risk of committing to a repository with the wrong user identity. It allows you to define separate profiles for work, personal projects, and clients, and then automatically switch between them based on your working directory.
-
-It seamlessly manages your `user.name`, `user.email`, SSH keys, and Personal Access Tokens (PATs), acting as a unified and intelligent manager for your Git identity.
+`git-ego` manages separate Git identities for work, personal projects, and clients. Profiles can set `user.name`, `user.email`, SSH keys, signing keys, and HTTPS credentials.
 
 ---
 
 ## Key features
 
-* **Automatic profile switching:** Configure profiles to activate automatically when you enter a specific directory.
-* **Unified identity management:** A single profile can manage your commit author (`user.name`, `email`), your authentication method (`ssh-key`), and your API token (`pat`).
-* **True cross-platform support:** Works natively on macOS, Windows, and Linux by integrating with each OS’s secure credential store for its internal vault.
-* **Git credential helper:** Acts as a proper, robust credential helper for Git, ensuring seamless and secure authentication for `https://` remotes without conflicting with other system tools.
-* **Pre-commit safety net:** An optional Git hook warns you if you’re about to commit with a mismatched identity, providing a final chance to prevent a mistake.
+- Directory-based profile switching using Git `includeIf`.
+- Per-profile commit identity, SSH configuration, signing keys, and HTTPS host scopes.
+- PATs stored in the operating-system keychain and served through Git's credential-helper protocol.
+- Optional pre-commit identity check.
 
 ## Installation
 
@@ -28,13 +25,13 @@ You must have [Go](https://go.dev/dl/) (version 1.24+) installed on your system.
 
 ```bash
 go install github.com/bgreenwell/git-ego@latest
-````
+```
 
 *(Note: Ensure your Go bin directory, typically `~/go/bin`, is in your system’s `PATH`.)*
 
 ## One-time setup: Configure Git
 
-After installation, you need to tell Git to use `git-ego` as its credential helper. This single command makes `git-ego` the source of truth for your HTTPS credentials.
+Configure Git to use `git-ego` as its credential helper for supported HTTPS hosts.
 
 ```bash
 # Clear any old, conflicting helpers
@@ -76,8 +73,6 @@ Use the `list` (or `ls`) command to see all the profiles you’ve saved.
 git-ego list
 ```
 
-*Expected Output:*
-
 ```
 ACTIVE  PROFILE     NAME                 EMAIL                       ATTRIBUTES
 ------  -------     ----                 -----                       ----------
@@ -94,13 +89,11 @@ The `use` command sets your default global identity for any repositories that do
 git-ego use personal
 ```
 
-*Expected Output:*
-
 ```
 ✓ Set active profile to 'personal'.
 ```
 
-Now, `git-ego list` will show the active profile marked with an asterisk:
+`git-ego list` marks the active profile with an asterisk:
 
 ```
 ACTIVE  PROFILE     NAME                 EMAIL                       ATTRIBUTES
@@ -129,34 +122,6 @@ For a repository-specific safety expectation, create an untracked `.gitego` file
 
 -----
 
-## Use cases
-
-`git-ego` solves real-world identity management challenges for developers across various scenarios:
-
-### 🏢 **Professional development**
-- **Freelancers/contractors**: Manage separate identities for different clients without credential mix-ups
-- **Corporate + side projects**: Keep work, open-source, and consulting identities completely separate
-- **Agency work**: Different branding and credentials for each client project
-
-### 🔒 **Security & compliance**
-- **Multi-environment access**: Different tokens for dev/staging/production to prevent accidents
-- **Audit requirements**: Trackable identities for different types of work (features, hotfixes, reviews)
-- **Enterprise security**: Credential isolation mandated by corporate security policies
-
-### 🚀 **DevOps & operations**
-- **Multi-cloud management**: Separate credentials for AWS, GCP, Azure environments
-- **Infrastructure teams**: Different access levels for different infrastructure components
-- **Deployment safety**: Prevent catastrophic deployments due to wrong environment credentials
-
-### 🎓 **Educational & personal**
-- **Students**: Separate school, internship, and personal project identities
-- **Instructors**: Clean separation between teaching materials and personal work
-- **Open source**: Different authority levels as maintainer vs. contributor
-
-### 💡 **Common pain points solved**
-- ❌ **Before**: Manual `git config` switching, accidental wrong commits, security breaches
-- ✅ **After**: Automatic switching, zero-risk management, professional separation
-
 ## Commands
 
 | Command | Alias | Description |
@@ -180,7 +145,7 @@ For a repository-specific safety expectation, create an untracked `.gitego` file
 
 ## How it works
 
-`git-ego` is built on top of two powerful, native Git features, ensuring it works seamlessly without fighting against Git's own mechanisms.
+`git-ego` uses Git conditional includes and the credential-helper protocol.
 
 ### Visualizing the workflow
 
@@ -216,7 +181,7 @@ When you run `git-ego auto ~/work work-ssh`:
         path = ~/.gitego/profiles/work-ssh.gitconfig
     ```
 
-This tells Git: "if the current repository is inside the `~/work/` directory, merge the settings from this other file." It's a native, fast, and highly reliable way to switch contexts.
+This tells Git to merge the profile settings for repositories inside `~/work/`.
 
 ### 2\. Authentication: credential helper
 
@@ -230,13 +195,12 @@ For handling Personal Access Tokens (PATs) with HTTPS remotes, `git-ego` acts as
 
 ### Security model
 
-`git-ego` is designed with security as a top priority. Here's how it keeps your credentials safe:
+PAT handling:
 
   * **No Plaintext PATs:** Personal Access Tokens (PATs) are never stored in plaintext in the configuration file.
   * **Secure OS Keychain:** `git-ego` uses the native, secure keychain of your operating system to store and retrieve your PATs. This is the same secure storage that tools like Docker and other credential managers use.
   * **Scoped Access:** The credential helper only provides a token when Git explicitly requests it for an HTTPS operation. The token is passed directly to Git in memory and is not logged or stored elsewhere.
 
-By leveraging these native OS features and Git's own robust mechanisms, `git-ego` provides a seamless and secure way to manage your developer identities.
 
 ## Contributing
 
