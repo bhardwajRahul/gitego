@@ -16,7 +16,7 @@
             pname = "git-ego";
             version = "0.2.3";
             src = self;
-            vendorHash = pkgs.lib.fakeHash;
+            vendorHash = "sha256-95hogC0JlrnUJBvoV4Ac4F5XmOqsQh2AQ0rZGcC/4oY=";
             ldflags = [ "-s" "-w" "-X github.com/bgreenwell/git-ego/cmd.version=0.2.3" ];
 
             meta = with pkgs.lib; {
