@@ -1,6 +1,10 @@
 package config
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 func TestProfileCredentialHosts(t *testing.T) {
 	legacy := &Profile{}
@@ -39,5 +43,77 @@ func TestValidateCredentialHosts(t *testing.T) {
 				t.Fatalf("ValidateCredentialHosts(%v) success = %t, want %t", tc.hosts, got, tc.want)
 			}
 		})
+	}
+}
+
+func TestConfigFindsMostSpecificAutoRule(t *testing.T) {
+	root := t.TempDir()
+	projects := filepath.Join(root, "projects")
+	work := filepath.Join(projects, "work")
+	repo := filepath.Join(work, "repository")
+	if err := os.MkdirAll(repo, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	projectsPath, err := NormalizeAutoRulePath(projects)
+	if err != nil {
+		t.Fatal(err)
+	}
+	workPath, err := NormalizeAutoRulePath(work)
+	if err != nil {
+		t.Fatal(err)
+	}
+	repoPath, err := NormalizeAutoRulePath(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := &Config{AutoRules: []*AutoRule{
+		{Path: projectsPath, Profile: "personal"},
+		{Path: workPath, Profile: "work"},
+	}}
+
+	match := cfg.findBestMatchingRule(repoPath)
+	if match == nil || match.Profile != "work" {
+		t.Fatalf("best auto rule = %#v, want work rule", match)
+	}
+}
+
+func TestRepositoryProfileFileTakesPrecedence(t *testing.T) {
+	root := t.TempDir()
+	repoDir := filepath.Join(root, "project", "nested", "repository")
+	if err := os.MkdirAll(repoDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "project", ".gitego"), []byte("work\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &Config{Profiles: map[string]*Profile{"work": {}}}
+	profile, found := cfg.profileFromRepositoryFile(filepath.ToSlash(repoDir) + "/")
+	if !found || profile != "work" {
+		t.Fatalf("repository profile = %q, found = %t", profile, found)
+	}
+}
+
+func TestConfigSaveAndLoadRoundTrip(t *testing.T) {
+	tempDir := t.TempDir()
+	originalConfigPath := gitegoConfigPath
+	gitegoConfigPath = filepath.Join(tempDir, "config.yaml")
+	t.Cleanup(func() { gitegoConfigPath = originalConfigPath })
+
+	cfg := &Config{
+		Profiles:      map[string]*Profile{"work": {Name: "Work User", Email: "work@example.com", Hosts: []string{"github.com"}}},
+		AutoRules:     []*AutoRule{{Path: "/projects/work/", Profile: "work"}},
+		ActiveProfile: "work",
+	}
+	if err := cfg.Save(); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.ActiveProfile != "work" || loaded.Profiles["work"].Email != "work@example.com" || len(loaded.AutoRules) != 1 {
+		t.Fatalf("loaded config = %#v", loaded)
 	}
 }
