@@ -52,6 +52,61 @@ func TestSetGlobalGitConfig(t *testing.T) {
 	}
 }
 
+func TestLocalGitConfigLifecycle(t *testing.T) {
+	repoDir := t.TempDir()
+	if output, err := exec.Command("git", "init", repoDir).CombinedOutput(); err != nil {
+		t.Fatalf("initialize Git repository: %v: %s", err, output)
+	}
+
+	originalWd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(repoDir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(originalWd); err != nil {
+			t.Errorf("restore working directory: %v", err)
+		}
+	})
+
+	if err := SetLocalGitConfig("user.email", "local@example.com"); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := GetEffectiveGitConfig("user.email"); err != nil || got != "local@example.com" {
+		t.Fatalf("effective local email = %q, %v", got, err)
+	}
+	if err := UnsetLocalGitConfig("user.email"); err != nil {
+		t.Fatal(err)
+	}
+	if err := UnsetLocalGitConfig("user.email"); err != nil {
+		t.Fatalf("unsetting absent local value: %v", err)
+	}
+}
+
+func TestGlobalGitConfigValuesAndMissingUnset(t *testing.T) {
+	homeDir := t.TempDir()
+	t.Setenv("HOME", homeDir)
+	t.Setenv("USERPROFILE", homeDir)
+
+	for _, value := range []string{"first", "second"} {
+		if output, err := exec.Command("git", "config", "--global", "--add", "credential.helper", value).CombinedOutput(); err != nil {
+			t.Fatalf("add global credential helper: %v: %s", err, output)
+		}
+	}
+	values, err := GetGlobalGitConfigValues("credential.helper")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(values, ",") != "first,second" {
+		t.Fatalf("global credential helpers = %v", values)
+	}
+	if err := UnsetGlobalGitConfig("user.signingkey"); err != nil {
+		t.Fatalf("unsetting absent global value: %v", err)
+	}
+}
+
 // TestHelperProcess remains the same.
 func TestHelperProcess(t *testing.T) {
 	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
