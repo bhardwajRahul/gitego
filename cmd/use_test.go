@@ -50,7 +50,9 @@ func TestUseCommand(t *testing.T) {
 
 	// 3. Execute the command's logic
 	args := []string{"personal"}
-	runner.run(useCmd, args)
+	if err := runner.run(useCmd, args); err != nil {
+		t.Fatal(err)
+	}
 
 	// 4. Assertions
 	if !savedConfig {
@@ -97,7 +99,9 @@ func TestUseCommand_macOS(t *testing.T) {
 		},
 	}
 
-	runner.run(useCmd, []string{"work"})
+	if err := runner.run(useCmd, []string{"work"}); err != nil {
+		t.Fatal(err)
+	}
 
 	if setCredentialCalls["mac-user"] != "mac-token" {
 		t.Error("Expected SetGitCredential to be called with correct username and token on macOS")

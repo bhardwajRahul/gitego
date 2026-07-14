@@ -484,10 +484,6 @@ func removeCommentIfPresent(newLines []string, lines []string, i int) []string {
 	return newLines
 }
 
-func isNewSection(trimmedLine string) bool {
-	return strings.HasPrefix(trimmedLine, "[") && !strings.HasPrefix(trimmedLine, "[includeIf")
-}
-
 func formatOutput(lines []string) string {
 	output := strings.Join(lines, "\n")
 	output = strings.TrimSpace(output)

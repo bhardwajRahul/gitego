@@ -46,7 +46,9 @@ func TestEditCommand(t *testing.T) {
 	cleanup := setEditCommandFlags("new-email@example.com")
 	defer cleanup()
 
-	runner.run(editCmd, args)
+	if err := runner.run(editCmd, args); err != nil {
+		t.Fatal(err)
+	}
 
 	// Assertions
 	validateEditCommandResults(t, mockCfg)

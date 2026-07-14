@@ -57,7 +57,9 @@ func TestAutoCommand(t *testing.T) {
 	// Execute the command's logic
 	testPath := filepath.Join("tmp", "work")
 	args := []string{testPath, "work"}
-	runner.run(autoCmd, args)
+	if err := runner.run(autoCmd, args); err != nil {
+		t.Fatal(err)
+	}
 
 	// Assertions
 	validateAutoRuleCreation(t, mockCfg, testPath)

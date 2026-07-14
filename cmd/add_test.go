@@ -32,7 +32,9 @@ func TestAddCommand(t *testing.T) {
 	addName = "Test User"
 	addEmail = "test@work.com"
 
-	a.run(addCmd, args)
+	if err := a.run(addCmd, args); err != nil {
+		t.Fatal(err)
+	}
 
 	// 4. Assert the results
 	if len(mockCfg.Profiles) != 1 {

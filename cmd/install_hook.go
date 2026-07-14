@@ -138,29 +138,6 @@ func gitHooksPath() (string, error) {
 	return path, nil
 }
 
-// findGitRoot searches for the root of the git repository.
-func findGitRoot(startDir string) (string, error) {
-	dir, err := filepath.Abs(startDir)
-	if err != nil {
-		return "", err
-	}
-
-	for {
-		if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
-			return dir, nil
-		}
-
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-
-		dir = parent
-	}
-
-	return "", fmt.Errorf("git root not found")
-}
-
 func init() {
 	rootCmd.AddCommand(installHookCmd)
 }

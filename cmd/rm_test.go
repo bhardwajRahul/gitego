@@ -64,7 +64,9 @@ func TestRmCommand(t *testing.T) {
 	args := []string{"work"}
 	forceFlag = true
 
-	runner.run(rmCmd, args)
+	if err := runner.run(rmCmd, args); err != nil {
+		t.Fatal(err)
+	}
 
 	forceFlag = false
 

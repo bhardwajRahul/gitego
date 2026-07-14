@@ -108,7 +108,9 @@ func runStatusTestScenario(t *testing.T, runner *statusRunner, targetDir, expect
 
 	statusCmd := &cobra.Command{}
 	statusCmd.SetOut(&buf)
-	runner.run(statusCmd, []string{})
+	if err := runner.run(statusCmd, []string{}); err != nil {
+		t.Fatal(err)
+	}
 
 	output := buf.String()
 
