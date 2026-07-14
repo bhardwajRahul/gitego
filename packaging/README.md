@@ -14,5 +14,5 @@ next release:
 
 - `homebrew/git-ego.rb` — Homebrew formula template
 - `scoop/git-ego.json` — Scoop manifest template
-- `nix/flake.nix` — Nix flake for building from source
-- `debian/` — Debian source-package metadata
+- `nix/flake.nix` — Nix packaging work in progress; it is not yet a supported
+  installation path

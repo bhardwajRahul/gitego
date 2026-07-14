@@ -1,19 +1,20 @@
-# Release Checklist
+# Release checklist
 
-This document outlines the steps to prepare and publish a new release of git-ego.
+This document outlines how to prepare and publish a git-ego release. Replace
+`X.Y.Z` below with the release version.
 
 ## Pre-Release Checklist
 
 ### 1. Code Quality
 - [ ] All tests pass: `go test -v ./...`
-- [ ] Linting passes: `golangci-lint run` 
-- [ ] Code is formatted: `gofmt -d .` (should show no output)
+- [ ] Linting passes: `golangci-lint run`
+- [ ] Code is formatted: `gofmt -s -d .` (should show no output)
 - [ ] Static analysis passes: `go vet ./...`
 
 ### 2. Version Management
 - [ ] Update version in `cmd/root.go`
 - [ ] Update CHANGELOG.md with new version and date
-- [ ] Ensure go.mod and GitHub Actions versions are aligned
+- [ ] Ensure Go versions in `go.mod` and GitHub Actions are aligned
 
 ### 3. Documentation
 - [ ] README.md reflects current features and requirements
@@ -25,18 +26,30 @@ This document outlines the steps to prepare and publish a new release of git-ego
 - [ ] Binary works: `./git-ego --version`
 - [ ] GitHub Actions CI passes
 
+For credential-related changes, run the opt-in live smoke test after installing
+the checkout. It creates and pushes a test commit, then restores the selected
+profile:
+
+```bash
+go install .
+GIT_EGO_BIN="$(go env GOPATH)/bin/git-ego" \
+  GIT_EGO_SMOKE_RETURN_PROFILE=personal \
+  scripts/gh-account-switch-smoke-test.sh --push
+```
+
 ## Release Process
 
 ### 1. Create Release Tag
 ```bash
-git tag -a v0.1.2 -m "Release version 0.1.1"
-git push origin v0.1.2
+git tag -a vX.Y.Z -m "Release vX.Y.Z"
+git push origin vX.Y.Z
 ```
 
 ### 2. GitHub Release
-- [ ] Create GitHub release from tag
-- [ ] Include changelog entry in release notes
-- [ ] Upload pre-built binaries (optional)
+- [ ] The tag workflow creates a draft release and uploads platform archives.
+- [ ] Review the generated notes and publish the draft release.
+- [ ] Verify the Homebrew and Scoop workflows triggered by publishing succeed.
+- [ ] Verify the WinGet workflow succeeds once the initial manifest PR has merged.
 
 ### 3. Verify Installation
 ```bash
@@ -45,7 +58,6 @@ git ego --version
 ```
 
 ### 4. Post-Release
-- [ ] Update version back to "dev" for continued development
 - [ ] Create "Unreleased" section in CHANGELOG.md
 - [ ] Announce on social media/relevant channels
 

@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3] - 2026-07-14
+
+### Changed
+
+- Consolidated PAT handling on the secure git-ego keyring and scoped credential
+  helper; profile switching no longer modifies unrelated macOS credentials.
+- Clarified that `git ego` and `git-ego` are equivalent user-facing commands,
+  and documented host-scoped credential-helper setup.
+
+### Added
+
+- Added a live, opt-in GitHub two-account smoke test and expanded integration
+  coverage for profile persistence, Git configuration, hooks, and credentials.
+
 ## [0.2.2] - 2026-07-13
 
 ### Changed
