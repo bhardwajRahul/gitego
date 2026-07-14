@@ -21,13 +21,32 @@ Git identity manager with directory-based profile switching.
 
 ## Installation
 
-You must have [Go](https://go.dev/dl/) (version 1.24+) installed on your system.
+Install a released binary with your preferred package manager:
+
+```bash
+# Homebrew (macOS/Linux)
+brew install bgreenwell/tap/git-ego
+
+# Scoop (Windows)
+scoop bucket add bgreenwell https://github.com/bgreenwell/scoop-bucket
+scoop install git-ego
+```
+
+The WinGet package is submitted separately for initial review. Once accepted,
+install it with:
+
+```powershell
+winget install --id bgreenwell.GitEgo
+```
+
+Or install from source with [Go](https://go.dev/dl/) 1.24 or newer:
 
 ```bash
 go install github.com/bgreenwell/git-ego@latest
 ```
 
-*(Note: Ensure your Go bin directory, typically `~/go/bin`, is in your system’s `PATH`.)*
+Ensure your Go bin directory (typically `~/go/bin`) is in `PATH` when using
+`go install`.
 
 ## One-time setup: Configure Git
 
@@ -199,7 +218,8 @@ PAT handling:
 
   * **No Plaintext PATs:** Personal Access Tokens (PATs) are never stored in plaintext in the configuration file.
   * **Secure OS Keychain:** `git-ego` uses the native, secure keychain of your operating system to store and retrieve your PATs. This is the same secure storage that tools like Docker and other credential managers use.
-  * **Scoped Access:** The credential helper only provides a token when Git explicitly requests it for an HTTPS operation. The token is passed directly to Git in memory and is not logged or stored elsewhere.
+  * **Host Scoping:** The credential helper only provides a token for an HTTPS host explicitly configured on the selected profile. It ignores requests for other hosts and all `store` and `erase` operations.
+  * **In-Memory Use:** The token is passed directly to Git in memory and is not logged or stored elsewhere.
 
 
 ## Contributing

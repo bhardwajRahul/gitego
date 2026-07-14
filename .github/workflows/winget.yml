@@ -35,23 +35,12 @@ jobs:
         run: |
           url="https://github.com/bgreenwell/git-ego/releases/download/${{ steps.release.outputs.tag }}/git-ego-${{ steps.release.outputs.tag }}-windows-x86_64.zip"
 
-          if gh api repos/microsoft/winget-pkgs/contents/manifests/b/bgreenwell/GitEgo > /dev/null 2>&1; then
-            komac update bgreenwell.GitEgo \
-              --version "${{ steps.release.outputs.version }}" \
-              --urls "$url" \
-              --submit
+          if ! gh api repos/microsoft/winget-pkgs/contents/manifests/b/bgreenwell/GitEgo > /dev/null 2>&1; then
+            echo "The initial WinGet manifest must be submitted manually before automated updates can run."
             exit 0
           fi
 
-          komac new bgreenwell.GitEgo \
+          komac update bgreenwell.GitEgo \
             --version "${{ steps.release.outputs.version }}" \
             --urls "$url" \
-            --publisher bgreenwell \
-            --publisher-url https://github.com/bgreenwell \
-            --package-name git-ego \
-            --package-url https://github.com/bgreenwell/git-ego \
-            --license MIT \
-            --license-url "https://github.com/bgreenwell/git-ego/blob/${{ steps.release.outputs.tag }}/LICENSE" \
-            --short-description "Git identity manager" \
-            --release-notes-url "https://github.com/bgreenwell/git-ego/releases/tag/${{ steps.release.outputs.tag }}" \
             --submit

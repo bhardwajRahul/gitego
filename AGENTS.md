@@ -35,3 +35,15 @@ practices:
 - `github.com/spf13/cobra` — CLI framework
 - `github.com/zalando/go-keyring` — cross-platform credential store access
 - `gopkg.in/yaml.v3` — YAML parsing/emitting
+
+## Verification and releases
+
+- Before finishing Go changes, run the checks in `../CLAUDE.md`: `gofmt -s`,
+  `go vet ./...`, `golangci-lint run`, and `go test -v ./...`.
+- Release builds and CI are defined in `.github/workflows/`. Package publishing
+  updates the Homebrew tap and Scoop bucket automatically. WinGet requires a
+  one-time manually reviewed manifest PR before the `winget.yml` update
+  workflow can publish later versions.
+- Package workflows rely on repository secrets named `HOMEBREW_TAP_TOKEN`,
+  `SCOOP_BUCKET_TOKEN`, and `WINGET_TOKEN`. Never place token values in source,
+  workflow logs, or documentation.
