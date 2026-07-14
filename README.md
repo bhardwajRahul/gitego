@@ -1,12 +1,15 @@
-![](assets/logo.svg)
+# git-ego <img src="assets/logo.svg" align="right" width="120" />
 
-[![Build Status](https://github.com/bgreenwell/git-ego/actions/workflows/go-ci.yml/badge.svg)](https://github.com/bgreenwell/git-ego/actions/workflows/go-ci.yml)
-[![Go Reference](https://pkg.go.dev/badge/github.com/bgreenwell/git-ego.svg)](https://pkg.go.dev/github.com/bgreenwell/git-ego)
-![Go Version](https://img.shields.io/badge/go%20version-%3E=1.24-61CFDD.svg)
-[![Latest Release](https://img.shields.io/github/v/release/bgreenwell/git-ego)](https://github.com/bgreenwell/git-ego/releases/latest)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![CI](https://img.shields.io/github/actions/workflow/status/bgreenwell/git-ego/go-ci.yml?style=for-the-badge)](https://github.com/bgreenwell/git-ego/actions/workflows/go-ci.yml)
+[![Go Reference](https://img.shields.io/badge/go.dev-reference-%2300ADD8?style=for-the-badge&logo=go&logoColor=white)](https://pkg.go.dev/github.com/bgreenwell/git-ego)
+[![Latest Release](https://img.shields.io/github/v/release/bgreenwell/git-ego?style=for-the-badge&color=%23107C41)](https://github.com/bgreenwell/git-ego/releases/latest)
 
-Git identity manager with directory-based profile switching.
+[![License: MIT](https://img.shields.io/badge/License-MIT-%232196F3.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+[![Go](https://img.shields.io/badge/go-1.24%2B-%2300ADD8.svg?style=for-the-badge&logo=go&logoColor=white)](https://go.dev/)
+[![Easy Install](https://img.shields.io/badge/Easy%20Install-Homebrew%20%7C%20Scoop%20%7C%20WinGet-%23FBB040?style=for-the-badge)](#installation)
+[![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-blue?style=for-the-badge)](https://github.com/bgreenwell/git-ego/releases/latest)
+
+> Git identity manager with directory-based profile switching.
 
 `git-ego` manages separate Git identities for work, personal projects, and clients. Profiles can set `user.name`, `user.email`, SSH keys, signing keys, and HTTPS credentials.
 
@@ -21,23 +24,28 @@ Git identity manager with directory-based profile switching.
 
 ## Installation
 
-Install a released binary with your preferred package manager:
+### Package managers
+
+**macOS / Linux (Homebrew):**
 
 ```bash
-# Homebrew (macOS/Linux)
 brew install bgreenwell/tap/git-ego
+```
 
-# Scoop (Windows)
+**Windows (Scoop):**
+
+```powershell
 scoop bucket add bgreenwell https://github.com/bgreenwell/scoop-bucket
 scoop install git-ego
 ```
 
-The WinGet package is submitted separately for initial review. Once accepted,
-install it with:
+**Windows (WinGet):** _(Coming soon — pending initial PR merge)_
 
 ```powershell
 winget install --id bgreenwell.GitEgo
 ```
+
+### Go
 
 Or install from source with [Go](https://go.dev/dl/) 1.24 or newer:
 
