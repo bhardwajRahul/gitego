@@ -165,5 +165,5 @@ jobs:
       run: |
         tag="${GITHUB_REF#refs/tags/}"
         for workflow in homebrew.yml scoop.yml winget.yml; do
-          gh workflow run "$workflow" --ref "$tag" -f tag="$tag"
+          gh workflow run "$workflow" --repo "$GITHUB_REPOSITORY" --ref "$tag" -f tag="$tag"
         done
