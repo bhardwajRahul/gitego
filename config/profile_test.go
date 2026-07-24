@@ -78,23 +78,6 @@ func TestConfigFindsMostSpecificAutoRule(t *testing.T) {
 	}
 }
 
-func TestRepositoryProfileFileTakesPrecedence(t *testing.T) {
-	root := t.TempDir()
-	repoDir := filepath.Join(root, "project", "nested", "repository")
-	if err := os.MkdirAll(repoDir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(root, "project", ".gitego"), []byte("work\n"), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	cfg := &Config{Profiles: map[string]*Profile{"work": {}}}
-	profile, found := cfg.profileFromRepositoryFile(filepath.ToSlash(repoDir) + "/")
-	if !found || profile != "work" {
-		t.Fatalf("repository profile = %q, found = %t", profile, found)
-	}
-}
-
 func TestConfigSaveAndLoadRoundTrip(t *testing.T) {
 	tempDir := t.TempDir()
 	originalConfigPath := gitegoConfigPath

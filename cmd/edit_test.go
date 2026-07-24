@@ -59,8 +59,8 @@ func TestEditCommandSynchronizesActiveProfile(t *testing.T) {
 	if ensuredEmail != "updated@example.com" {
 		t.Fatalf("generated profile gitconfig used %q, want updated email", ensuredEmail)
 	}
-	if global["user.email"] != "updated@example.com" {
-		t.Fatalf("active global profile used %q, want updated email", global["user.email"])
+	if len(global) != 0 {
+		t.Fatalf("edit should not write top-level Git identity: %v", global)
 	}
 }
 

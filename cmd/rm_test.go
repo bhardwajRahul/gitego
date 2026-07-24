@@ -105,12 +105,8 @@ func TestRmCommandClearsActiveProfile(t *testing.T) {
 	if mockCfg.ActiveProfile != "" {
 		t.Fatalf("active profile = %q, want empty", mockCfg.ActiveProfile)
 	}
-	wantKeys := map[string]bool{"user.name": true, "user.email": true, "user.signingkey": true, "gpg.format": true, "core.sshCommand": true}
-	for _, key := range unsetKeys {
-		delete(wantKeys, key)
-	}
-	if len(wantKeys) != 0 {
-		t.Fatalf("global Git keys were not cleared: %v", wantKeys)
+	if len(unsetKeys) != 0 {
+		t.Fatalf("rm should not alter top-level Git keys: %v", unsetKeys)
 	}
 }
 
@@ -139,12 +135,8 @@ func validateRmCommandEffects(t *testing.T, saved bool, removedIncludeIf, remove
 		t.Error("Expected config.Save() to be called, but it wasn't.")
 	}
 
-	if removedIncludeIf != "work" {
-		t.Error("Expected RemoveIncludeIf to be called for 'work' profile.")
-	}
-
-	if removedProfileCfg != "work" {
-		t.Error("Expected the profile config file for 'work' to be removed.")
+	if removedIncludeIf != "" || removedProfileCfg != "" {
+		t.Error("derived Git artifacts should be handled by reconciliation")
 	}
 
 	if deletedToken != "work" {

@@ -33,9 +33,18 @@ func runCheckCommitTest(t *testing.T, cfg *config.Config, gitEmail, userInput st
 			return "", nil
 		},
 		loadConfig: func() (*config.Config, error) { return cfg, nil },
-		stdin:      strings.NewReader(userInput),
-		stderr:     &stderrBuf,
-		exit:       mockExit,
+		resolve: func(*config.Config) profileResolution {
+			profile := cfg.Profiles["work"]
+			consistent := profile != nil && profile.Email == gitEmail
+			problem := ""
+			if !consistent {
+				problem = "effective Git name/email do not match the expected profile"
+			}
+			return profileResolution{Effective: "work", Expected: "work", ExpectationSource: "auto-rule", Consistent: consistent, Problem: problem}
+		},
+		stdin:  strings.NewReader(userInput),
+		stderr: &stderrBuf,
+		exit:   mockExit,
 	}
 
 	runner.run(&cobra.Command{}, []string{})
@@ -72,7 +81,7 @@ func TestCheckCommitCommand(t *testing.T) {
 	// Setup a mock config using an absolute path for the rule.
 	mockCfg := &config.Config{
 		Profiles: map[string]*config.Profile{
-			"work": {Email: "work@example.com"},
+			"work": {Name: "Work User", Email: "work@example.com"},
 		},
 		AutoRules: []*config.AutoRule{
 			{Path: tempDir, Profile: "work"},
@@ -94,28 +103,28 @@ func TestCheckCommitCommand(t *testing.T) {
 			t.Errorf("Expected exit code 1 when user aborts, but got %d", exitCode)
 		}
 
-		if !strings.Contains(stderr, "Commit aborted by user") {
+		if !strings.Contains(stderr, "commit aborted") {
 			t.Errorf("Expected 'aborted' message in stderr, but it was missing. Got:\n%s", stderr)
 		}
 	})
 
 	t.Run("when emails mismatch and user proceeds", func(t *testing.T) {
-		// User types "n".
+		// Mismatches are never interactive in v0.3.
 		exitCode, stderr := runCheckCommitTest(t, mockCfg, "other@email.com", "n\n")
 
-		if exitCode != 0 {
-			t.Errorf("Expected exit code 0 when user proceeds, but got %d", exitCode)
+		if exitCode != 1 {
+			t.Errorf("Expected exit code 1 for a mismatch, but got %d", exitCode)
 		}
 
-		if !strings.Contains(stderr, "Commit proceeding with mismatched user") {
-			t.Errorf("Expected 'proceeding' message in stderr, but it was missing. Got:\n%s", stderr)
+		if !strings.Contains(stderr, "commit aborted") {
+			t.Errorf("Expected abort message in stderr, but it was missing. Got:\n%s", stderr)
 		}
 	})
 
 	t.Run("when active profile email is overridden", func(t *testing.T) {
 		mockCfg.ActiveProfile = "work"
 		exitCode, stderr := runCheckCommitTest(t, mockCfg, "overridden@example.com", "\n")
-		if exitCode != 1 || !strings.Contains(stderr, "Commit aborted by user") {
+		if exitCode != 1 || !strings.Contains(stderr, "commit aborted") {
 			t.Fatalf("expected active profile override to be checked, code=%d stderr=%q", exitCode, stderr)
 		}
 	})

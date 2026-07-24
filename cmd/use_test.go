@@ -53,12 +53,8 @@ func TestUseCommand(t *testing.T) {
 		t.Errorf("Expected active profile to be 'personal', got '%s'", mockCfg.ActiveProfile)
 	}
 
-	if gitConfigCalls["user.name"] != "Test User" {
-		t.Errorf("Expected user.name to be set to 'Test User', got '%s'", gitConfigCalls["user.name"])
-	}
-
-	if gitConfigCalls["user.email"] != "test@example.com" {
-		t.Errorf("Expected user.email to be set to 'test@example.com', got '%s'", gitConfigCalls["user.email"])
+	if len(gitConfigCalls) != 0 {
+		t.Errorf("global use should not write top-level Git identity: %v", gitConfigCalls)
 	}
 
 }

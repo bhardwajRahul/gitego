@@ -69,6 +69,9 @@ func TestStatusCommand(t *testing.T) {
 			return mockCfg, nil
 		},
 		getGitConfig: func(key string) (string, error) { return "", nil },
+		resolve: func(*config.Config) profileResolution {
+			return profileResolution{Name: "Work User", Email: "work@example.com", Effective: "work", Origin: "auto include", Expected: "work", ExpectationSource: "auto-rule", Consistent: true}
+		},
 	}
 
 	// --- Scenario 1: Test inside the auto-rule directory ---
@@ -81,7 +84,7 @@ func TestStatusCommand(t *testing.T) {
 			return "work@example.com", nil
 		}
 
-		runStatusTestScenario(t, runner, workDir, "gitego auto-rule for profile 'work'", "Work User")
+		runStatusTestScenario(t, runner, workDir, "auto-rule", "Work User")
 	})
 
 	// --- Scenario 2: Test outside any auto-rule directory ---
@@ -94,7 +97,10 @@ func TestStatusCommand(t *testing.T) {
 			return "global@example.com", nil
 		}
 
-		runStatusTestScenario(t, runner, tempDir, "Global gitego default", "Global User")
+		runner.resolve = func(*config.Config) profileResolution {
+			return profileResolution{Name: "Global User", Email: "global@example.com", Effective: "global", Origin: "default include", Consistent: true}
+		}
+		runStatusTestScenario(t, runner, tempDir, "default include", "Global User")
 	})
 }
 

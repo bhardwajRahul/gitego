@@ -105,12 +105,10 @@ func runIntegrationUseProfile(t *testing.T) {
 }
 
 func validateIntegrationUseProfile(t *testing.T, gitConfigPath string) {
-	gitConfigBytes, _ := os.ReadFile(gitConfigPath)
-
-	gitConfigContent := string(gitConfigBytes)
-	if !strings.Contains(gitConfigContent, "name = Test User") ||
-		!strings.Contains(gitConfigContent, "email = test@work.com") {
-		t.Fatal(".gitconfig was not updated correctly by 'use' command.")
+	profileBytes, _ := os.ReadFile(filepath.Join(filepath.Dir(gitConfigPath), ".gitego", "profiles", "work.gitconfig"))
+	profileContent := string(profileBytes)
+	if !strings.Contains(profileContent, "name = \"Test User\"") || !strings.Contains(profileContent, "email = \"test@work.com\"") || !strings.Contains(profileContent, "profile = \"work\"") {
+		t.Fatal("managed profile config was not updated correctly by 'use' command")
 	}
 }
 
@@ -132,8 +130,8 @@ func validateIntegrationAutoRule(t *testing.T, gitConfigPath string) {
 	gitConfigBytes, _ := os.ReadFile(gitConfigPath)
 
 	gitConfigContent := string(gitConfigBytes)
-	if !strings.Contains(gitConfigContent, "[includeIf") {
-		t.Fatal(".gitconfig was not updated with an includeIf rule by 'auto' command.")
+	if !strings.Contains(gitConfigContent, "includes.gitconfig") {
+		t.Fatal(".gitconfig was not updated with the managed include")
 	}
 }
 

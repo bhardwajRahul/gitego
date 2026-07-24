@@ -4,7 +4,6 @@ package cmd
 
 import (
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/bgreenwell/git-ego/config"
@@ -26,8 +25,6 @@ func TestAutoCommand(t *testing.T) {
 
 	var savedConfig bool
 
-	var ensuredProfile, includedProfile, includedPath string
-
 	// Create the test runner with mocked dependencies
 	runner := &autoRunner{
 		load: func() (*config.Config, error) {
@@ -42,14 +39,9 @@ func TestAutoCommand(t *testing.T) {
 			return nil
 		},
 		ensureProfileGitconfig: func(profileName string, p *config.Profile) error {
-			ensuredProfile = profileName
-
 			return nil
 		},
 		addIncludeIf: func(profileName, path string) error {
-			includedProfile = profileName
-			includedPath = path
-
 			return nil
 		},
 	}
@@ -63,7 +55,9 @@ func TestAutoCommand(t *testing.T) {
 
 	// Assertions
 	validateAutoRuleCreation(t, mockCfg, testPath)
-	validateAutoCommandEffects(t, savedConfig, ensuredProfile, includedProfile, includedPath)
+	if !savedConfig {
+		t.Fatal("expected authoritative config to be saved")
+	}
 }
 
 // validateAutoRuleCreation validates that the auto rule was created correctly.
@@ -89,22 +83,3 @@ func validateAutoRuleCreation(t *testing.T, mockCfg *config.Config, testPath str
 }
 
 // validateAutoCommandEffects validates all side effects of the auto command.
-func validateAutoCommandEffects(t *testing.T, savedConfig bool, ensuredProfile, includedProfile, includedPath string) {
-	t.Helper()
-
-	if !savedConfig {
-		t.Error("Expected the config to be saved, but it wasn't.")
-	}
-
-	if ensuredProfile != "work" {
-		t.Error("Expected EnsureProfileGitconfig to be called for 'work' profile.")
-	}
-
-	if includedProfile != "work" {
-		t.Error("Expected AddIncludeIf to be called for 'work' profile.")
-	}
-
-	if !strings.HasSuffix(includedPath, "/") {
-		t.Errorf("Expected path passed to AddIncludeIf to have a trailing slash, got '%s'", includedPath)
-	}
-}

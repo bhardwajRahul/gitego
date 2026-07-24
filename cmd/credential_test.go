@@ -67,7 +67,7 @@ func TestCredentialCommandScopesHostAndOperation(t *testing.T) {
 	runner := &credentialRunner{
 		loadConfig: func() (*config.Config, error) {
 			return &config.Config{Profiles: map[string]*config.Profile{
-				"work": {Username: "work-user"},
+				"work": {Name: "Work User", Email: "work@example.com", Username: "work-user"},
 			}, ActiveProfile: "work"}, nil
 		},
 		getToken: func(string) (string, error) { return "secret", nil },
@@ -97,7 +97,7 @@ func TestCredentialCommandUsesConfiguredHosts(t *testing.T) {
 	runner := &credentialRunner{
 		loadConfig: func() (*config.Config, error) {
 			return &config.Config{Profiles: map[string]*config.Profile{
-				"work": {Username: "work-user", Hosts: []string{"gitlab.example.com", "github.example.com:8443"}},
+				"work": {Name: "Work User", Email: "work@example.com", Username: "work-user", Hosts: []string{"gitlab.example.com", "github.example.com:8443"}},
 			}, ActiveProfile: "work"}, nil
 		},
 		getToken: func(string) (string, error) { return "secret", nil },
@@ -130,7 +130,7 @@ func TestCredentialCommandRejectsNonHTTPSRequests(t *testing.T) {
 	runner := &credentialRunner{
 		loadConfig: func() (*config.Config, error) {
 			return &config.Config{Profiles: map[string]*config.Profile{
-				"work": {Username: "work-user"},
+				"work": {Name: "Work User", Email: "work@example.com", Username: "work-user"},
 			}, ActiveProfile: "work"}, nil
 		},
 		getToken: func(string) (string, error) {
