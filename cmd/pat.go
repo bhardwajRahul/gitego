@@ -23,29 +23,35 @@ var patSetCmd = &cobra.Command{
 	Short: "Store a PAT read from standard input.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := config.ValidateProfileName(args[0]); err != nil {
-			return err
-		}
-		cfg, err := config.Load()
-		if err != nil {
-			return err
-		}
-		if _, ok := cfg.Profiles[args[0]]; !ok {
-			return fmt.Errorf("profile %q not found", args[0])
-		}
-		token, err := io.ReadAll(os.Stdin)
-		if err != nil {
-			return fmt.Errorf("read PAT from stdin: %w", err)
-		}
-		if token := strings.TrimSpace(string(token)); token != "" {
-			if err := config.SetToken(args[0], token); err != nil {
-				return fmt.Errorf("store PAT: %w", err)
+		return config.WithLock(func() error {
+			if err := config.ValidateProfileName(args[0]); err != nil {
+				return err
 			}
-		} else {
-			return fmt.Errorf("PAT must not be empty")
-		}
-		cmd.Printf("✓ PAT stored for profile %q.\n", args[0])
-		return nil
+			cfg, err := config.Load()
+			if err != nil {
+				return err
+			}
+			profile, ok := cfg.Profiles[args[0]]
+			if !ok {
+				return fmt.Errorf("profile %q not found", args[0])
+			}
+			if profile.CredentialID == "" {
+				return fmt.Errorf("profile %q uses legacy credential storage; run '%s doctor --repair'", args[0], binaryName)
+			}
+			token, err := io.ReadAll(os.Stdin)
+			if err != nil {
+				return fmt.Errorf("read PAT from stdin: %w", err)
+			}
+			if token := strings.TrimSpace(string(token)); token != "" {
+				if err := config.SetToken(profile.CredentialID, token); err != nil {
+					return fmt.Errorf("store PAT: %w", err)
+				}
+			} else {
+				return fmt.Errorf("PAT must not be empty")
+			}
+			cmd.Printf("✓ PAT stored for profile %q.\n", args[0])
+			return nil
+		})
 	},
 }
 
@@ -54,14 +60,28 @@ var patDeleteCmd = &cobra.Command{
 	Short: "Delete a profile PAT from the secure keyring.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := config.ValidateProfileName(args[0]); err != nil {
-			return err
-		}
-		if err := config.DeleteToken(args[0]); err != nil {
-			return fmt.Errorf("delete PAT: %w", err)
-		}
-		cmd.Printf("✓ PAT deleted for profile %q.\n", args[0])
-		return nil
+		return config.WithLock(func() error {
+			if err := config.ValidateProfileName(args[0]); err != nil {
+				return err
+			}
+			cfg, err := config.Load()
+			if err != nil {
+				return err
+			}
+			profile, ok := cfg.Profiles[args[0]]
+			if !ok {
+				return fmt.Errorf("profile %q not found", args[0])
+			}
+			account := profile.CredentialID
+			if account == "" {
+				account = args[0]
+			}
+			if err := config.DeleteToken(account); err != nil && !config.IsTokenNotFound(err) {
+				return fmt.Errorf("delete PAT: %w", err)
+			}
+			cmd.Printf("✓ PAT deleted for profile %q.\n", args[0])
+			return nil
+		})
 	},
 }
 

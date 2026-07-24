@@ -83,7 +83,11 @@ The globally active profile is marked with an asterisk (*).`,
 			// Keyring access can be slow or prompt on headless systems. Opt in
 			// when the PAT marker is needed.
 			if listCheckPATs {
-				if token, err := config.GetToken(name); err == nil && token != "" {
+				account := profile.CredentialID
+				if account == "" {
+					account = name
+				}
+				if token, err := config.GetToken(account); err == nil && token != "" {
 					attributes = append(attributes, "[PAT]")
 				}
 			}

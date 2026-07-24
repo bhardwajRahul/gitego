@@ -53,6 +53,10 @@ func (a *adder) run(cmd *cobra.Command, args []string) error {
 		SigningKey: addSigningKey,
 		Hosts:      addHosts,
 	}
+	newProfile.CredentialID, err = config.NewCredentialID()
+	if err != nil {
+		return err
+	}
 
 	cfg.Profiles[profileName] = newProfile
 
@@ -80,9 +84,9 @@ with a specific Git user name and email address.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		a := &adder{
 			load: config.Load,
-			save: func(c *config.Config) error { return c.Save() },
+			save: saveAndReconcile,
 		}
-		return a.run(cmd, args)
+		return config.WithLock(func() error { return a.run(cmd, args) })
 	},
 }
 

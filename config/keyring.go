@@ -2,7 +2,10 @@
 
 package config
 
-import "github.com/zalando/go-keyring"
+import (
+	"errors"
+	"github.com/zalando/go-keyring"
+)
 
 // Use a constant for the service name to avoid typos.
 // This is the name under which gitego stores its own library of PATs.
@@ -22,3 +25,5 @@ func GetToken(profileName string) (string, error) {
 func DeleteToken(profileName string) error {
 	return keyring.Delete(gitegoKeyringService, profileName)
 }
+
+func IsTokenNotFound(err error) bool { return errors.Is(err, keyring.ErrNotFound) }

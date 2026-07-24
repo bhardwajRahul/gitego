@@ -39,7 +39,7 @@ func (r *rmRunner) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("load configuration: %w", err)
 	}
 
-	_, exists := cfg.Profiles[profileName]
+	profile, exists := cfg.Profiles[profileName]
 	if !exists {
 		return fmt.Errorf("profile %q not found", profileName)
 	}
@@ -56,17 +56,15 @@ func (r *rmRunner) run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// 1. Remove the includeIf directive from the global .gitconfig.
-	if err := r.removeIncludeIf(profileName); err != nil {
-		return fmt.Errorf("remove Git include rule: %w", err)
+	account := profile.CredentialID
+	if account == "" {
+		account = profileName
+	}
+	if err := r.deleteToken(account); err != nil && !config.IsTokenNotFound(err) {
+		return fmt.Errorf("delete PAT: %w", err)
 	}
 
-	// 2. Delete the profile-specific .gitconfig file.
-	if err := r.removeProfileCfg(profileName); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("remove profile config: %w", err)
-	}
-
-	// 3. Remove any auto-rules from gitego's config that use this profile.
+	// Remove any auto-rules from gitego's config that use this profile.
 	var keptRules []*config.AutoRule
 
 	for _, rule := range cfg.AutoRules {
@@ -88,20 +86,6 @@ func (r *rmRunner) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("save configuration: %w", err)
 	}
 
-	// 5. Remove the PAT from the OS keychain.
-	// A profile may not have a token, and some headless keyring backends do not
-	// support deletion. The profile/config removal is still authoritative.
-	_ = r.deleteToken(profileName)
-	if wasActive {
-		if r.unsetGlobalGit != nil {
-			for _, key := range []string{"user.name", "user.email", "user.signingkey", "gpg.format", "core.sshCommand"} {
-				if err := r.unsetGlobalGit(key); err != nil {
-					return fmt.Errorf("unset %s: %w", key, err)
-				}
-			}
-		}
-	}
-
 	fmt.Printf("✓ Profile '%s' and all associated rules removed successfully.\n", profileName)
 	return nil
 }
@@ -118,7 +102,7 @@ var rmCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		runner := &rmRunner{
 			load:            config.Load,
-			save:            func(c *config.Config) error { return c.Save() },
+			save:            saveAndReconcile,
 			removeIncludeIf: config.RemoveIncludeIf,
 			deleteToken:     config.DeleteToken,
 			unsetGlobalGit:  utils.UnsetGlobalGitConfig,
@@ -130,7 +114,7 @@ var rmCmd = &cobra.Command{
 				return os.Remove(path)
 			},
 		}
-		return runner.run(cmd, args)
+		return config.WithLock(func() error { return runner.run(cmd, args) })
 	},
 }
 
