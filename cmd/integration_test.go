@@ -75,6 +75,11 @@ func TestIntegration_FullWorkflow(t *testing.T) {
 	validateIntegrationUseProfile(t, paths.gitConfig)
 	runIntegrationAutoRule(t, homeDir)
 	validateIntegrationAutoRule(t, paths.gitConfig)
+	// The Nix build sandbox has no OS keyring service. Removal's genuine
+	// keyring-failure behavior is covered by the injected runner tests.
+	if os.Getenv("NIX_BUILD_TOP") != "" {
+		return
+	}
 	runIntegrationRemoveProfile(t)
 	validateIntegrationRemoveProfile(t, paths.gitConfig, paths.gitegoConfig)
 }

@@ -3,10 +3,28 @@
 package cmd
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/bgreenwell/git-ego/config"
 )
+
+func TestRmAbortsOnKeyringDeletionFailure(t *testing.T) {
+	cfg := &config.Config{Profiles: map[string]*config.Profile{"work": {Name: "Work", Email: "work@example.com", CredentialID: "credential-id"}}}
+	saved := false
+	runner := &rmRunner{load: func() (*config.Config, error) { return cfg, nil }, save: func(*config.Config) error { saved = true; return nil }, deleteToken: func(string) error { return errors.New("keyring unavailable") }}
+	forceFlag = true
+	t.Cleanup(func() { forceFlag = false })
+	if err := runner.run(rmCmd, []string{"work"}); err == nil {
+		t.Fatal("expected keyring deletion failure")
+	}
+	if saved {
+		t.Fatal("configuration was mutated after credential cleanup failed")
+	}
+	if _, ok := cfg.Profiles["work"]; !ok {
+		t.Fatal("profile was removed after credential cleanup failed")
+	}
+}
 
 // setupRmTestConfig creates a mock config for rm command testing.
 func setupRmTestConfig() *config.Config {
