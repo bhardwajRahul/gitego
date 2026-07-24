@@ -35,9 +35,9 @@ jobs:
 
     # Step 4: Run the linter.
     - name: Run golangci-lint
-      uses: golangci/golangci-lint-action@v6
+      uses: golangci/golangci-lint-action@v7
       with:
-        version: latest
+        version: v2.1.6
 
   # The 'build-and-test' job will run our tests.
   build-and-test:
