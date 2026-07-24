@@ -8,11 +8,22 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/bgreenwell/git-ego/config"
 	"github.com/spf13/cobra"
 )
 
 // The version of the application.
-var version = "0.2.4"
+var version = "0.3.0"
+
+func saveAndReconcile(c *config.Config) error {
+	if err := c.Save(); err != nil {
+		return err
+	}
+	if err := c.Reconcile(); err != nil {
+		return fmt.Errorf("configuration saved, but Git artifacts could not be reconciled: %w; run '%s doctor --repair'", err, binaryName)
+	}
+	return nil
+}
 
 // binaryName is the name of the running executable, supporting invocation as
 // both "gitego" and "git-ego" (git subcommand form).

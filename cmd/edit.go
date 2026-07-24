@@ -80,12 +80,6 @@ func (e *editor) run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("update profile gitconfig: %w", err)
 		}
 	}
-	if cfg.ActiveProfile == profileName {
-		if err := applyProfileToGlobal(profile, e.setGlobalGit, e.unsetGlobalGit); err != nil {
-			return fmt.Errorf("apply updated active profile: %w", err)
-		}
-	}
-
 	// Save the updated configuration.
 	if err := e.save(cfg); err != nil {
 		return fmt.Errorf("save configuration: %w", err)
@@ -106,12 +100,12 @@ Only the flags you provide will be updated.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		e := &editor{
 			load:                   config.Load,
-			save:                   func(c *config.Config) error { return c.Save() },
-			ensureProfileGitconfig: config.EnsureProfileGitconfig,
+			save:                   saveAndReconcile,
+			ensureProfileGitconfig: nil,
 			setGlobalGit:           utils.SetGlobalGitConfig,
 			unsetGlobalGit:         utils.UnsetGlobalGitConfig,
 		}
-		return e.run(cmd, args)
+		return config.WithLock(func() error { return e.run(cmd, args) })
 	},
 }
 

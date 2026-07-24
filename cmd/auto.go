@@ -40,7 +40,22 @@ func (ar *autoRunner) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("resolve path %q: %w", path, err)
 	}
 
-	if ar.ruleExists(cfg, cleanPath, profileName, path) {
+	for i, rule := range cfg.AutoRules {
+		if rule.Path != cleanPath {
+			continue
+		}
+		if rule.Profile == profileName {
+			fmt.Printf("✓ Auto-switch rule for profile '%s' on path '%s' already exists.\n", profileName, path)
+			return nil
+		}
+		if !autoReplace {
+			return fmt.Errorf("path %q is already assigned to profile %q; use --replace to change it", path, rule.Profile)
+		}
+		cfg.AutoRules[i].Profile = profileName
+		if err := ar.save(cfg); err != nil {
+			return err
+		}
+		fmt.Println("✓ Rule replaced.")
 		return nil
 	}
 
@@ -78,18 +93,6 @@ func (ar *autoRunner) processPath(path string) (string, error) {
 	return config.NormalizeAutoRulePath(path)
 }
 
-func (ar *autoRunner) ruleExists(cfg *config.Config, cleanPath, profileName, originalPath string) bool {
-	for _, rule := range cfg.AutoRules {
-		if rule.Path == cleanPath && rule.Profile == profileName {
-			fmt.Printf("✓ Auto-switch rule for profile '%s' on path '%s' already exists.\n", profileName, originalPath)
-
-			return true
-		}
-	}
-
-	return false
-}
-
 func (ar *autoRunner) setupAutoRule(
 	cfg *config.Config,
 	profileName string,
@@ -97,14 +100,6 @@ func (ar *autoRunner) setupAutoRule(
 	cleanPath string,
 ) error {
 	fmt.Printf("Setting up new auto-switch rule for profile '%s'...\n", profileName)
-
-	if err := ar.ensureProfileGitconfig(profileName, profile); err != nil {
-		return fmt.Errorf("error creating profile gitconfig: %v", err)
-	}
-
-	if err := ar.addIncludeIf(profileName, cleanPath); err != nil {
-		return fmt.Errorf("error updating global .gitconfig: %v", err)
-	}
 
 	newRule := &config.AutoRule{
 		Path:    cleanPath,
@@ -128,11 +123,11 @@ profile whenever you are working inside the given directory path.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		runner := &autoRunner{
 			load:                   config.Load,
-			save:                   func(c *config.Config) error { return c.Save() },
+			save:                   saveAndReconcile,
 			ensureProfileGitconfig: config.EnsureProfileGitconfig,
 			addIncludeIf:           config.AddIncludeIf,
 		}
-		return runner.run(cmd, args)
+		return config.WithLock(func() error { return runner.run(cmd, args) })
 	},
 }
 
@@ -166,29 +161,31 @@ var autoRemoveCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("resolve path %q: %w", args[0], err)
 		}
-		cfg, err := config.Load()
-		if err != nil {
-			return err
-		}
-		for i, rule := range cfg.AutoRules {
-			if rule.Path != cleanPath {
-				continue
-			}
-			if err := config.RemoveIncludeIfAt(rule.Profile, cleanPath); err != nil {
+		return config.WithLock(func() error {
+			cfg, err := config.Load()
+			if err != nil {
 				return err
 			}
-			cfg.AutoRules = append(cfg.AutoRules[:i], cfg.AutoRules[i+1:]...)
-			if err := cfg.Save(); err != nil {
-				return err
+			for i, rule := range cfg.AutoRules {
+				if rule.Path != cleanPath {
+					continue
+				}
+				cfg.AutoRules = append(cfg.AutoRules[:i], cfg.AutoRules[i+1:]...)
+				if err := saveAndReconcile(cfg); err != nil {
+					return err
+				}
+				cmd.Printf("✓ Removed auto-switch rule for %q.\n", args[0])
+				return nil
 			}
-			cmd.Printf("✓ Removed auto-switch rule for %q.\n", args[0])
-			return nil
-		}
-		return fmt.Errorf("no auto-switch rule for %q", args[0])
+			return fmt.Errorf("no auto-switch rule for %q", args[0])
+		})
 	},
 }
 
 func init() {
+	autoCmd.Flags().BoolVar(&autoReplace, "replace", false, "Replace an existing rule for the same normalized path")
 	autoCmd.AddCommand(autoListCmd, autoRemoveCmd)
 	rootCmd.AddCommand(autoCmd)
 }
+
+var autoReplace bool

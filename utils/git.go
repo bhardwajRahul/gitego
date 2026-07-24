@@ -25,6 +25,35 @@ func GetEffectiveGitConfig(key string) (string, error) {
 	return strings.TrimSpace(string(output)), nil
 }
 
+// GetEffectiveGitConfigWithOrigin returns the winning value and the file or
+// scope that supplied it. Git quotes unusual origins, so split only once.
+func GetEffectiveGitConfigWithOrigin(key string) (value, origin string, err error) {
+	cmd := execCommand("git", "config", "--show-origin", "--get", key)
+	output, err := cmd.Output()
+	if err != nil {
+		return "", "", err
+	}
+	line := strings.TrimSpace(string(output))
+	fields := strings.SplitN(line, "\t", 2)
+	if len(fields) != 2 {
+		fields = strings.Fields(line)
+		if len(fields) < 2 {
+			return "", "", fmt.Errorf("unexpected git config origin output")
+		}
+		return strings.Join(fields[1:], " "), fields[0], nil
+	}
+	return strings.TrimSpace(fields[1]), strings.TrimSpace(fields[0]), nil
+}
+
+func RepositoryRoot() (string, error) {
+	cmd := execCommand("git", "rev-parse", "--show-toplevel")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(output)), nil
+}
+
 // SetGlobalGitConfig runs 'git config --global <key> <value>'.
 // It sets a configuration value in the user's global .gitconfig file.
 func SetGlobalGitConfig(key, value string) error {

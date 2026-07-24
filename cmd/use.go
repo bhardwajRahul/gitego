@@ -38,12 +38,10 @@ func (u *useRunner) run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("profile %q not found", profileName)
 	}
 
-	setGit, unsetGit := u.setGlobalGit, u.unsetGlobalGit
 	if useLocalFlag {
-		setGit, unsetGit = u.setLocalGit, u.unsetLocalGit
-	}
-	if err := applyProfileToGlobal(profile, setGit, unsetGit); err != nil {
-		return fmt.Errorf("apply Git profile: %w", err)
+		if err := applyProfileToGlobal(profileName, profile, u.setLocalGit, u.unsetLocalGit); err != nil {
+			return fmt.Errorf("apply Git profile: %w", err)
+		}
 	}
 
 	// Action 2: Set this profile as the active one in gitego's config.
@@ -62,11 +60,14 @@ func (u *useRunner) run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func applyProfileToGlobal(profile *config.Profile, set func(string, string) error, unset func(string) error) error {
+func applyProfileToGlobal(profileName string, profile *config.Profile, set func(string, string) error, unset func(string) error) error {
 	for key, value := range map[string]string{"user.name": profile.Name, "user.email": profile.Email} {
 		if err := set(key, value); err != nil {
 			return fmt.Errorf("setting %s: %w", key, err)
 		}
+	}
+	if err := set("gitego.profile", profileName); err != nil {
+		return fmt.Errorf("setting gitego.profile: %w", err)
 	}
 
 	if profile.SigningKey != "" {
@@ -113,13 +114,13 @@ credential helper.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		runner := &useRunner{
 			load:           config.Load,
-			save:           func(c *config.Config) error { return c.Save() },
+			save:           saveAndReconcile,
 			setGlobalGit:   utils.SetGlobalGitConfig,
 			unsetGlobalGit: utils.UnsetGlobalGitConfig,
 			setLocalGit:    utils.SetLocalGitConfig,
 			unsetLocalGit:  utils.UnsetLocalGitConfig,
 		}
-		return runner.run(cmd, args)
+		return config.WithLock(func() error { return runner.run(cmd, args) })
 	},
 }
 
