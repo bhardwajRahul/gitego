@@ -17,6 +17,7 @@ import (
 type credentialRunner struct {
 	loadConfig func() (*config.Config, error)
 	getToken   func(string) (string, error)
+	resolve    func(*config.Config) profileResolution
 	stdin      io.Reader
 	stdout     io.Writer
 }
@@ -51,19 +52,35 @@ func (r *credentialRunner) run(cmd *cobra.Command, args []string) {
 	if err != nil {
 		return // If we can't load config, we can't do anything. Exit silently.
 	}
+	if err := cfg.Validate(); err != nil {
+		return
+	}
 
-	activeProfileName, _ := cfg.GetActiveProfileForCurrentDir()
-
-	if activeProfileName == "" {
+	resolver := r.resolve
+	if resolver == nil {
+		resolver = func(c *config.Config) profileResolution {
+			return profileResolution{Effective: c.ActiveProfile, Legacy: true, Consistent: c.ActiveProfile != ""}
+		}
+	}
+	resolution := resolver(cfg)
+	if !resolution.Consistent || resolution.Effective == "" {
 		return // No active profile, nothing to do.
 	}
+	activeProfileName := resolution.Effective
 
 	profile, exists := cfg.Profiles[activeProfileName]
 	if !exists || profile.Username == "" || !profile.SupportsCredentialHost(request["host"]) {
 		return // Active profile doesn't exist or has no username for auth.
 	}
 
-	token, err := r.getToken(activeProfileName)
+	account := profile.CredentialID
+	if account == "" && resolution.Legacy {
+		account = activeProfileName
+	}
+	if account == "" {
+		return
+	}
+	token, err := r.getToken(account)
 	if err != nil || token == "" {
 		return // No PAT stored for this profile.
 	}
@@ -85,6 +102,7 @@ var credentialCmd = &cobra.Command{
 		runner := &credentialRunner{
 			loadConfig: config.LoadQuiet,
 			getToken:   config.GetToken,
+			resolve:    resolveProfiles,
 			stdin:      os.Stdin,
 			stdout:     os.Stdout,
 		}

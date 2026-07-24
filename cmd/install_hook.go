@@ -18,8 +18,8 @@ func hookScript() string {
 	return fmt.Sprintf(`
 # gitego pre-commit hook
 # This command checks your commit author against the expected profile.
-# If there's a mismatch, it will prompt you before committing.
-%s internal check-commit < /dev/tty
+# A mismatch aborts safely; correct it with "git ego use <profile> --local".
+%s internal check-commit
 `, binaryName)
 }
 

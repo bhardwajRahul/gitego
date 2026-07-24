@@ -1,5 +1,3 @@
-// cmd/status.go
-
 package cmd
 
 import (
@@ -10,60 +8,56 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// statusRunner holds dependencies for the status command for mocking.
 type statusRunner struct {
 	load         func() (*config.Config, error)
 	getGitConfig func(string) (string, error)
+	resolve      func(*config.Config) profileResolution
 }
 
-// run contains the core logic for the status command.
-func (sr *statusRunner) run(cmd *cobra.Command, args []string) error {
-	name, errName := sr.getGitConfig("user.name")
-	email, errEmail := sr.getGitConfig("user.email")
-
-	if errName != nil || errEmail != nil {
-		return fmt.Errorf("not inside a Git repository or user not configured")
-	}
-
+func (sr *statusRunner) run(cmd *cobra.Command, _ []string) error {
 	cfg, err := sr.load()
 	if err != nil {
 		return fmt.Errorf("load gitego configuration: %w", err)
 	}
-
-	source := "Global Git Config"
-
-	if cfg != nil {
-		// This will check the current directory against the loaded rules.
-		_, ruleSource := cfg.GetActiveProfileForCurrentDir()
-		if ruleSource != "No active gitego profile" {
-			source = ruleSource
-		}
+	if err := cfg.Validate(); err != nil {
+		return fmt.Errorf("invalid gitego configuration: %w", err)
 	}
-
+	resolver := sr.resolve
+	if resolver == nil {
+		resolver = resolveProfiles
+	}
+	r := resolver(cfg)
 	cmd.Println("--- Git Identity Status ---")
-	cmd.Printf("  Name:   %s\n", name)
-	cmd.Printf("  Email:  %s\n", email)
-	cmd.Printf("  Source: %s\n", source)
-	cmd.Println("---------------------------")
+	cmd.Printf("  Name:      %s\n", r.Name)
+	cmd.Printf("  Email:     %s\n", r.Email)
+	cmd.Printf("  Effective: %s\n", valueOrNone(r.Effective))
+	cmd.Printf("  Origin:    %s\n", valueOrNone(r.Origin))
+	if r.Expected != "" || r.ExpectationSource != "" {
+		cmd.Printf("  Expected:  %s (%s)\n", valueOrNone(r.Expected), r.ExpectationSource)
+	}
+	if r.Legacy {
+		cmd.Println("  Legacy:    validated compatibility fallback")
+	}
+	if !r.Consistent {
+		cmd.Printf("  Consistent: no (%s)\n", r.Problem)
+		return fmt.Errorf("git identity is inconsistent")
+	}
+	cmd.Println("  Consistent: yes")
 	return nil
 }
 
+func valueOrNone(v string) string {
+	if v == "" {
+		return "(none)"
+	}
+	return v
+}
+
 var statusCmd = &cobra.Command{
-	Use:   "status",
-	Short: "Displays the current effective Git user and any active gitego rule.",
-	Long: `Checks the current Git configuration and any applicable gitego rules
-to show you which user.name and user.email are currently in effect. It also
-tells you whether the configuration is coming from your global .gitconfig or
-from a gitego auto-switch rule.`,
+	Use: "status", Short: "Display the effective profile, origin, expectation, and consistency.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		runner := &statusRunner{
-			load:         config.Load,
-			getGitConfig: utils.GetEffectiveGitConfig,
-		}
-		return runner.run(cmd, args)
+		return (&statusRunner{load: config.Load, getGitConfig: utils.GetEffectiveGitConfig, resolve: resolveProfiles}).run(cmd, args)
 	},
 }
 
-func init() {
-	rootCmd.AddCommand(statusCmd)
-}
+func init() { rootCmd.AddCommand(statusCmd) }
