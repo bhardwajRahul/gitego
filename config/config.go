@@ -16,13 +16,14 @@ import (
 
 // Profile represents a single user profile with a name and email.
 type Profile struct {
-	Name       string   `yaml:"name"`
-	Email      string   `yaml:"email"`
-	Username   string   `yaml:"username,omitempty"`
-	SSHKey     string   `yaml:"ssh_key,omitempty"`
-	SigningKey string   `yaml:"signing_key,omitempty"`
-	Hosts      []string `yaml:"hosts,omitempty"`
-	PAT        string   `yaml:"-"`
+	CredentialID string   `yaml:"credential_id,omitempty"`
+	Name         string   `yaml:"name"`
+	Email        string   `yaml:"email"`
+	Username     string   `yaml:"username,omitempty"`
+	SSHKey       string   `yaml:"ssh_key,omitempty"`
+	SigningKey   string   `yaml:"signing_key,omitempty"`
+	Hosts        []string `yaml:"hosts,omitempty"`
+	PAT          string   `yaml:"-"`
 }
 
 // CredentialHosts returns the hosts a profile may authenticate to. Hostless
@@ -147,6 +148,9 @@ func validateConfig(cfg *Config) {
 }
 
 func (c *Config) Save() error {
+	if err := c.Validate(); err != nil {
+		return err
+	}
 	data, err := yaml.Marshal(c)
 	if err != nil {
 		return fmt.Errorf("could not serialize config to yaml: %w", err)
@@ -156,7 +160,7 @@ func (c *Config) Save() error {
 		return fmt.Errorf("could not create config directory: %w", err)
 	}
 
-	if err := os.WriteFile(gitegoConfigPath, data, filePermissions); err != nil {
+	if err := atomicWriteFile(gitegoConfigPath, data, filePermissions); err != nil {
 		return fmt.Errorf("could not write config file: %w", err)
 	}
 
@@ -175,13 +179,6 @@ func (c *Config) GetActiveProfileForCurrentDir() (profileName, source string) {
 	if err != nil {
 		return profileName, source
 	}
-	if localProfile, found := c.profileFromRepositoryFile(currentAbsDir); found {
-		if _, exists := c.Profiles[localProfile]; exists {
-			return localProfile, "repository .gitego profile"
-		}
-		return "", "repository .gitego references an unknown profile"
-	}
-
 	bestMatch := c.findBestMatchingRule(currentAbsDir)
 	if bestMatch != nil {
 		profileName = bestMatch.Profile
@@ -189,28 +186,6 @@ func (c *Config) GetActiveProfileForCurrentDir() (profileName, source string) {
 	}
 
 	return profileName, source
-}
-
-func (c *Config) profileFromRepositoryFile(currentAbsDir string) (string, bool) {
-	dir := filepath.FromSlash(strings.TrimSuffix(currentAbsDir, "/"))
-	for {
-		path := filepath.Join(dir, ".gitego")
-		info, err := os.Stat(path)
-		if err == nil && !info.IsDir() {
-			data, readErr := os.ReadFile(path)
-			if readErr != nil {
-				return "", true
-			}
-			name := strings.TrimSpace(string(data))
-			return name, true
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-		dir = parent
-	}
-	return "", false
 }
 
 func getDefaultSource(activeProfile string) string {
@@ -316,7 +291,11 @@ func EnsureProfileGitconfig(profileName string, profile *Profile) error {
 		return fmt.Errorf("invalid profile email value: %w", err)
 	}
 
-	content := fmt.Sprintf("[user]\n    name = %s\n    email = %s\n", name, email)
+	marker, err := quoteGitConfigValue(profileName)
+	if err != nil {
+		return err
+	}
+	content := fmt.Sprintf("[user]\n    name = %s\n    email = %s\n\n[gitego]\n    profile = %s\n", name, email, marker)
 
 	if profile.SigningKey != "" {
 		signingKey, err := quoteGitConfigValue(profile.SigningKey)
@@ -343,7 +322,7 @@ func EnsureProfileGitconfig(profileName string, profile *Profile) error {
 		return err
 	}
 
-	return os.WriteFile(filePath, []byte(content), filePermissions)
+	return atomicWriteFile(filePath, []byte(content), filePermissions)
 }
 
 func AddIncludeIf(profileName string, dirPath string) error {
@@ -526,7 +505,7 @@ func ValidateProfileName(profileName string) error {
 		return fmt.Errorf("profile name must not be empty")
 	}
 	for _, r := range profileName {
-		if !(unicode.IsLetter(r) || unicode.IsDigit(r) || r == '.' || r == '_' || r == '-') {
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '.' && r != '_' && r != '-' {
 			return fmt.Errorf("invalid profile name %q: use only letters, numbers, '.', '_' and '-'", profileName)
 		}
 	}
@@ -587,33 +566,51 @@ func hasIncludeIfRule(lines []string, condition, profileConfigPath string) bool 
 // includes, and ~/.gitconfig. It does not modify user configuration.
 func (c *Config) VerifyAutoRules() []error {
 	var problems []error
-	if c.ActiveProfile != "" {
-		if _, ok := c.Profiles[c.ActiveProfile]; !ok {
-			problems = append(problems, fmt.Errorf("active profile %q does not exist", c.ActiveProfile))
-		}
+	if err := c.Validate(); err != nil {
+		problems = append(problems, err)
+		return problems
 	}
-	input, err := os.ReadFile(gitConfigPath)
-	if err != nil && !os.IsNotExist(err) {
-		return []error{fmt.Errorf("read global gitconfig: %w", err)}
-	}
-	lines := strings.Split(string(input), "\n")
-	for _, rule := range c.AutoRules {
-		profile, ok := c.Profiles[rule.Profile]
-		if !ok || profile == nil {
-			problems = append(problems, fmt.Errorf("%s: profile %q does not exist", rule.Path, rule.Profile))
-			continue
-		}
-		profilePath, err := ProfileGitconfigPath(rule.Profile)
+	for name := range c.Profiles {
+		path, _ := ProfileGitconfigPath(name)
+		data, err := os.ReadFile(path)
 		if err != nil {
-			problems = append(problems, err)
+			problems = append(problems, fmt.Errorf("profile include %q is missing", path))
 			continue
 		}
-		if _, err := os.Stat(profilePath); err != nil {
-			problems = append(problems, fmt.Errorf("%s: profile include %q is missing", rule.Path, profilePath))
+		if !strings.Contains(string(data), "profile = \""+name+"\"") {
+			problems = append(problems, fmt.Errorf("profile include %q has no marker", path))
 		}
-		condition, _ := quoteGitConfigValue("gitdir:" + rule.Path)
-		if !hasIncludeIfRule(lines, condition, filepath.ToSlash(profilePath)) {
-			problems = append(problems, fmt.Errorf("%s: global includeIf rule for profile %q is missing", rule.Path, rule.Profile))
+	}
+	includes, err := os.ReadFile(IncludesGitconfigPath())
+	if err != nil {
+		problems = append(problems, fmt.Errorf("managed includes file is missing"))
+	} else {
+		text := string(includes)
+		last := -1
+		for _, rule := range c.SortedAutoRules() {
+			needle := "gitdir:" + rule.Path
+			pos := strings.Index(text, needle)
+			if pos < 0 {
+				problems = append(problems, fmt.Errorf("auto-rule %q is missing from managed includes", rule.Path))
+			} else if pos < last {
+				problems = append(problems, fmt.Errorf("auto-rules are not ordered broad-to-specific"))
+			}
+			last = pos
+		}
+	}
+	global, err := os.ReadFile(gitConfigPath)
+	if err != nil {
+		problems = append(problems, fmt.Errorf("read global gitconfig: %w", err))
+	} else {
+		wanted := filepath.ToSlash(IncludesGitconfigPath())
+		count := 0
+		for _, block := range splitGitConfigBlocks(string(global)) {
+			if filepath.ToSlash(blockPath(block)) == wanted {
+				count++
+			}
+		}
+		if count != 1 {
+			problems = append(problems, fmt.Errorf("global gitconfig has %d managed includes, want 1", count))
 		}
 	}
 	return problems
