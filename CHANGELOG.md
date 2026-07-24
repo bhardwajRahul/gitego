@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-07-19
+
+### Added
+
+- Added effective `gitego.profile` markers, repository-local selection with
+  `use --local`, stable credential IDs, mutation locking, atomic persistence,
+  strict replacement imports, and a full `doctor --repair` migration.
+
+### Changed
+
+- Made YAML authoritative and consolidated derived identity rules into one
+  managed global include with broad-to-specific conditional rules.
+- Changed repository-root `.gitego` files into safety assertions; they never
+  select identity or credentials.
+- Made status, credentials, and commit checks use one consistency model that
+  verifies the effective marker, name, email, and any explicit expectation.
+
+### Fixed
+
+- Prevented credentials from following a stale auto-rule after a global switch
+  and rejected conflicting profiles for the same normalized path.
+- Made profile removal, PAT cleanup, imports, and interrupted reconciliation
+  fail safely with repair guidance.
+
 ## [0.2.4] - 2026-07-14
 
 ### Added

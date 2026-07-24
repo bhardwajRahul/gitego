@@ -28,6 +28,7 @@ continue to invoke `git-ego credential` directly.
 - Per-profile commit identity, SSH configuration, signing keys, and HTTPS host scopes.
 - PATs stored in the operating-system keychain and served through Git's credential-helper protocol.
 - Optional pre-commit identity check.
+- Fail-closed credential selection verified against Git's effective identity.
 
 ## Installation
 
@@ -135,7 +136,7 @@ ACTIVE  PROFILE     NAME                 EMAIL                       ATTRIBUTES
 
 #### 3\. Set a global default
 
-The `use` command sets your default global identity for any repositories that don’t have a specific rule. This will also update your global `.gitconfig`.
+The `use` command sets your default identity for repositories without a more specific rule. It updates authoritative YAML and reconciles one managed include at the end of your global `.gitconfig`.
 
 ```bash
 git ego use personal
@@ -163,6 +164,9 @@ Now, tell `git-ego` which profiles to use for which project directories.
 git ego auto ~/dev/work/ work-ssh
 git ego auto ~/dev/personal/ personal
 
+# A normalized path can have only one profile. Change it explicitly:
+git ego auto ~/dev/personal/ work-ssh --replace
+
 # Review or remove one rule later.
 git ego auto list
 git ego auto rm ~/dev/personal/
@@ -170,7 +174,11 @@ git ego auto rm ~/dev/personal/
 
 When you `cd` into `~/dev/work/any-repo`, your `user.name`, `user.email`, and `sshCommand` will be automatically switched to the `work-ssh` profile.
 
-For a repository-specific safety expectation, create an untracked `.gitego` file containing one profile name (for example `work-ssh`). `status`, the credential helper, and the commit safety check will use it in preference to directory rules. Add `.gitego` to the repository's local `.gitignore` if it should not be shared.
+For a repository-specific safety expectation, create a `.gitego` file at the repository root containing one profile name (for example `work-ssh`). This is an assertion only: it never changes identity or selects a PAT. Select a repository-local identity with `git ego use work-ssh --local`. An invalid, unreadable, or mismatched assertion makes the credential helper refuse credentials and makes the commit hook abort. Add `.gitego` to the repository's local `.gitignore` if it should not be shared.
+
+### Upgrading to v0.3
+
+Run `git ego doctor --repair` once. It assigns stable internal credential IDs, migrates legacy name-keyed PATs, removes old git-ego include rules, and regenerates the managed configuration. A validated legacy fallback keeps existing installations usable until repair, but it is temporary and will be removed in a later major release.
 
 -----
 
@@ -185,6 +193,7 @@ For a repository-specific safety expectation, create an untracked `.gitego` file
 | `git ego use <name>` | | Sets a profile as the active global default. |
 | `git ego use <name> --local` | | Applies an identity only in the current repository. |
 | `git ego auto <path> <name>` | | Sets a profile to be used automatically for a directory. |
+| `git ego auto <path> <name> --replace` | | Reassigns an existing normalized directory rule. |
 | `git ego auto list` | | Lists configured auto-switch rules. |
 | `git ego auto rm <path>` | | Removes one auto-switch rule. |
 | `git ego status` | | Displays the current effective Git user and its source. |
@@ -194,9 +203,10 @@ For a repository-specific safety expectation, create an untracked `.gitego` file
 | `git ego install-hook` | | Installs a pre-commit hook in the current repo. |
 | `git ego completion <shell>` | | Generates shell completion scripts. |
 | `git ego doctor` | | Checks auto-switch rules for Git/YAML drift. |
-| `git ego doctor --repair` | | Repairs missing generated includes and auto-rules. |
+| `git ego doctor --repair` | | Migrates legacy credentials and regenerates managed Git files. |
 | `git ego profiles export <file>` | | Exports profiles and auto-rules without PATs. |
 | `git ego profiles import <file>` | | Imports profiles and auto-rules without PATs. |
+| `git ego profiles import <file> --replace` | | Replaces non-empty state and detaches its PAT associations. |
 | `git ego --version` | `-v` | Prints the application version. |
 
 ## How it works
@@ -227,15 +237,12 @@ graph LR
 
 For managing your commit identity (`user.name`, `user.email`) and SSH keys, `git-ego` uses a Git feature called conditional includes.
 
-When you run `git-ego auto ~/work work-ssh`:
+The generated layout is:
 
-1.  `git-ego` creates a small, dedicated config file at `~/.gitego/profiles/work-ssh.gitconfig`.
-2.  This file contains only the `[user]` and `[core]` information for that profile.
-3.  `git-ego` then adds a block to your main `~/.gitconfig` file that looks like this:
-    ```ini
-    [includeIf "gitdir:~/work/"]
-        path = ~/.gitego/profiles/work-ssh.gitconfig
-    ```
+1. `~/.gitego/profiles/<name>.gitconfig` contains identity, SSH/signing settings, and `gitego.profile`.
+2. `~/.gitego/default.gitconfig` includes the active global profile.
+3. `~/.gitego/includes.gitconfig` includes the default first, followed by directory rules from broad to specific.
+4. One include at the end of `~/.gitconfig` loads `includes.gitconfig`.
 
 This tells Git to merge the profile settings for repositories inside `~/work/`.
 
@@ -245,7 +252,7 @@ For handling Personal Access Tokens (PATs) with HTTPS remotes, `git-ego` acts as
 
 1.  **Configuration**: The `git config --global credential.helper '!git-ego credential'` command tells Git that whenever it needs a username or password for an `https://` URL, it should run the `git-ego credential` command.
 2.  **Execution**: When you run `git push` or `git pull` on an HTTPS remote, Git executes `git-ego credential` in the background and pipes it the protocol, host, and path information.
-3.  **Context Resolution**: The `git-ego credential` command uses the same logic as `git-ego status`: it checks the current working directory to find the active profile via auto-rules or the global default.
+3.  **Context Resolution**: Git's effective `gitego.profile` marker is the credential source of truth. The helper verifies its effective `user.name` and `user.email`, then checks any repository-root `.gitego` assertion or most-specific auto-rule.
 4.  **Secure Retrieval**: It then fetches the corresponding PAT for that profile from your operating system's native, secure keychain (macOS Keychain, Windows Credential Manager, or Linux Secret Service).
 5.  **Response**: Finally, it prints the username and PAT to standard output, which Git reads to complete the authentication.
 
@@ -256,6 +263,7 @@ PAT handling:
   * **No Plaintext PATs:** Personal Access Tokens (PATs) are never stored in plaintext in the configuration file.
   * **Secure OS Keychain:** `git-ego` uses the native, secure keychain of your operating system to store and retrieve your PATs. This is the same secure storage that tools like Docker and other credential managers use.
   * **Host Scoping:** The credential helper only provides a token for an HTTPS host explicitly configured on the selected profile. It ignores requests for other hosts and all `store` and `erase` operations.
+  * **Consistency Checks:** A missing/unknown marker, identity mismatch, or explicit expectation mismatch produces no credential protocol output.
   * **In-Memory Use:** The token is passed directly to Git in memory and is not logged or stored elsewhere.
 
 
